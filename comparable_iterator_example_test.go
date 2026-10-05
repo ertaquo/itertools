@@ -96,7 +96,7 @@ func ExampleComparableIterator_UniqueFunc() {
 
 func ExampleComparableIterator_ToIterator() {
 	values := itertools.ToComparableIterator([]string{"red", "green"})
-	var iterator itertools.Iterator[string] = values.ToIterator()
+	var iterator = values.ToIterator()
 	fmt.Println(iterator.Collect())
 	// Output: [red green]
 }

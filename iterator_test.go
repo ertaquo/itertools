@@ -3,7 +3,6 @@ package itertools_test
 import (
 	"cmp"
 	"errors"
-	"iter"
 	"slices"
 	"sync"
 	"testing"
@@ -16,7 +15,7 @@ import (
 func TestIteratorConversion(t *testing.T) {
 	type numbers []int
 	assert.Equal(t, []int{1, 2}, itertools.ToIterator(numbers{1, 2}).Collect(), "ToIterator")
-	var seq iter.Seq[int] = slices.Values([]int{3, 4})
+	var seq = slices.Values([]int{3, 4})
 	assert.Equal(t, []int{3, 4}, itertools.SeqToIterator(seq).Collect(), "SeqToIterator")
 	assert.Equal(t, []int{5, 6}, slices.Collect(itertools.ToIterator([]int{5, 6}).ToSeq()), "ToSeq")
 }

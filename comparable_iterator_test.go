@@ -3,7 +3,6 @@ package itertools_test
 import (
 	"cmp"
 	"errors"
-	"iter"
 	"slices"
 	"strings"
 	"sync"
@@ -17,7 +16,7 @@ import (
 func TestComparableIteratorConversion(t *testing.T) {
 	type numbers []int
 	assert.Equal(t, []int{1, 2}, itertools.ToComparableIterator(numbers{1, 2}).Collect(), "ToComparableIterator")
-	var seq iter.Seq[int] = slices.Values([]int{3, 4})
+	var seq = slices.Values([]int{3, 4})
 	assert.Equal(t, []int{3, 4}, itertools.SeqToComparableIterator(seq).Collect(), "SeqToComparableIterator")
 	assert.Equal(t, []int{5, 6}, slices.Collect(itertools.ToComparableIterator([]int{5, 6}).ToSeq()), "ToSeq")
 }
@@ -487,7 +486,7 @@ func TestComparableIteratorUniqueFunc(t *testing.T) {
 
 func TestComparableIteratorToIterator(t *testing.T) {
 	i := itertools.ToComparableIterator([]int{1, 2, 3})
-	var converted itertools.Iterator[int] = i.ToIterator()
+	var converted = i.ToIterator()
 	assert.Equal(t, []int{1, 2, 3}, converted.Collect(), "ToIterator")
 }
 

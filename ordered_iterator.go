@@ -612,7 +612,7 @@ func (i OrderedIterator[V]) FilterAndCollectParallel(filterFunc func(value V) bo
 		})
 	}
 
-	wg.Wait()
+	_ = wg.Wait() //nolint:errcheck
 	return result
 }
 
@@ -876,7 +876,7 @@ func (i OrderedIterator[V]) MapAndCollectParallel[V2 any](mapFunc func(value V) 
 		})
 	}
 
-	wg.Wait()
+	_ = wg.Wait() //nolint:errcheck
 	return result
 }
 

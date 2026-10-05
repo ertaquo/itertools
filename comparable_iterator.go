@@ -348,7 +348,7 @@ func (i ComparableIterator[V]) FilterAndCollectParallel(filterFunc func(value V)
 		})
 	}
 
-	wg.Wait()
+	_ = wg.Wait() //nolint:errcheck
 	return result
 }
 
@@ -612,7 +612,7 @@ func (i ComparableIterator[V]) MapAndCollectParallel[V2 any](mapFunc func(value 
 		})
 	}
 
-	wg.Wait()
+	_ = wg.Wait() //nolint:errcheck
 	return result
 }
 

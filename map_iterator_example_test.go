@@ -71,7 +71,7 @@ func ExampleMapIterator_Collect() {
 func ExampleMapIterator_CollectAs() {
 	type inventory map[string]int
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": 5})
-	var result inventory = stock.CollectAs[inventory]()
+	var result = stock.CollectAs[inventory]()
 	fmt.Println(result)
 	// Output:
 	// map[apple:3 pear:5]

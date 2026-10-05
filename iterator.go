@@ -232,7 +232,7 @@ func (i Iterator[V]) FilterAndCollectParallel(filterFunc func(value V) bool, par
 		})
 	}
 
-	wg.Wait()
+	_ = wg.Wait() //nolint:errcheck
 	return result
 }
 
@@ -513,7 +513,7 @@ func (i Iterator[V]) MapAndCollectParallel[V2 any](mapFunc func(value V) V2, par
 		})
 	}
 
-	wg.Wait()
+	_ = wg.Wait() //nolint:errcheck
 	return result
 }
 

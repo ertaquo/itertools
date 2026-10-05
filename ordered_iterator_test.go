@@ -3,7 +3,6 @@ package itertools_test
 import (
 	"cmp"
 	"errors"
-	"iter"
 	"slices"
 	"strings"
 	"sync"
@@ -17,7 +16,7 @@ import (
 func TestOrderedIteratorConversion(t *testing.T) {
 	type numbers []int
 	assert.Equal(t, []int{1, 2}, itertools.ToOrderedIterator(numbers{1, 2}).Collect(), "ToOrderedIterator")
-	var seq iter.Seq[int] = slices.Values([]int{3, 4})
+	var seq = slices.Values([]int{3, 4})
 	assert.Equal(t, []int{3, 4}, itertools.SeqToOrderedIterator(seq).Collect(), "SeqToOrderedIterator")
 	assert.Equal(t, []int{5, 6}, slices.Collect(itertools.ToOrderedIterator([]int{5, 6}).ToSeq()), "ToSeq")
 }
@@ -525,8 +524,8 @@ func TestOrderedIteratorSortedVariants(t *testing.T) {
 
 func TestOrderedIteratorConversions(t *testing.T) {
 	i := itertools.ToOrderedIterator([]int{3, 1, 2})
-	var comparable itertools.ComparableIterator[int] = i.ToComparableIterator()
-	var plain itertools.Iterator[int] = i.ToIterator()
+	var comparable = i.ToComparableIterator()
+	var plain = i.ToIterator()
 	assert.Equal(t, []int{3, 1, 2}, comparable.Collect(), "ToComparableIterator")
 	assert.Equal(t, []int{3, 1, 2}, plain.Collect(), "ToIterator")
 }

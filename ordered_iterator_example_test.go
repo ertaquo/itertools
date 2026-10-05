@@ -340,9 +340,12 @@ func ExampleOrderedIterator_SortedStableFunc() {
 }
 
 func ExampleOrderedIterator_ToComparableIterator() {
-	i := itertools.ToOrderedIterator([]int{1, 2, 1, 3})
-	var comparable itertools.ComparableIterator[int] = i.ToComparableIterator()
-	fmt.Println(comparable.Unique().Collect())
+	fmt.Println(itertools.
+		ToOrderedIterator([]int{1, 2, 1, 3}).
+		ToComparableIterator().
+		Unique().
+		Collect(),
+	)
 	// Output: [1 2 3]
 }
 
@@ -372,7 +375,7 @@ func ExampleOrderedIterator_UniqueFunc() {
 
 func ExampleOrderedIterator_ToIterator() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3})
-	var values itertools.Iterator[int] = i.ToIterator()
+	var values = i.ToIterator()
 	fmt.Println(values.Collect())
 	// Output: [1 2 3]
 }
