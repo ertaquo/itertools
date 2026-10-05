@@ -11,15 +11,21 @@ import (
 
 // ComparableIterator yields comparable values of type V. It has the same
 // signature as [iter.Seq] and can be used directly in a for range loop.
+//
+// Prefer [OrderedIterator] when V satisfies its type constraint.
 type ComparableIterator[V comparable] func(yield func(V) bool)
 
 // ToComparableIterator returns an iterator over the elements of s in slice order.
+//
+// Prefer [ToOrderedIterator] when V satisfies its type constraint.
 func ToComparableIterator[Slice ~[]V, V comparable](s Slice) ComparableIterator[V] {
 	return ComparableIterator[V](slices.Values(s))
 }
 
 // SeqToComparableIterator converts s to a ComparableIterator without collecting
 // its values.
+//
+// Prefer [SeqToOrderedIterator] when V satisfies its type constraint.
 func SeqToComparableIterator[V comparable](s iter.Seq[V]) ComparableIterator[V] {
 	return ComparableIterator[V](s)
 }

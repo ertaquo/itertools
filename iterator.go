@@ -12,14 +12,23 @@ import (
 
 // Iterator yields values of type V. It has the same signature as [iter.Seq]
 // and can be used directly in a for range loop.
+//
+// Prefer [OrderedIterator] or [ComparableIterator] when V satisfies their type
+// constraints.
 type Iterator[V any] func(yield func(V) bool)
 
 // ToIterator returns an iterator over the elements of s in slice order.
+//
+// Prefer [ToOrderedIterator] or [ToComparableIterator] when V satisfies their type
+// constraints.
 func ToIterator[Slice ~[]V, V any](s Slice) Iterator[V] {
 	return Iterator[V](slices.Values(s))
 }
 
 // SeqToIterator converts s to an Iterator without collecting its values.
+//
+// Prefer [SeqToOrderedIterator] or [SeqToComparableIterator] when V satisfies their
+// type constraints.
 func SeqToIterator[V any](s iter.Seq[V]) Iterator[V] {
 	return Iterator[V](s)
 }
