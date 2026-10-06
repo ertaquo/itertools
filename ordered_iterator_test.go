@@ -753,6 +753,72 @@ func TestOrderedIteratorReverseSkip(t *testing.T) {
 	assert.Equal(t, []int{3, 1}, itertools.ToOrderedIterator([]int{1, 2, 3, 1}).SkipWhile(func(v int) bool { return v < 3 }).Collect(), "SkipWhile")
 }
 
+func TestOrderedIteratorShuffle(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []int
+	}{
+		{"nil", nil},
+		{"empty", []int{}},
+		{"single", []int{5}},
+		{"all equal", []int{2, 2, 2}},
+		{"distinct", []int{5, 1, 4, 2, 3}},
+		{"duplicates", []int{-1, 2, 0, 2, -1}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			values := slices.Clone(tt.values)
+			shuffled := itertools.ToOrderedIterator(values).Shuffle()
+			if !slices.Equal(values, tt.values) {
+				t.Errorf("Shuffle modified source = %v, want %v", values, tt.values)
+			}
+			got := shuffled.Collect()
+			want := slices.Clone(tt.values)
+			slices.Sort(got)
+			slices.Sort(want)
+			if !slices.Equal(got, want) {
+				t.Errorf("Shuffle(%v) sorted = %v, want %v", tt.values, got, want)
+			}
+		})
+	}
+}
+
+func TestOrderedIteratorShuffleRange(t *testing.T) {
+	values := []int{1, 2, 3, 4}
+	visited := 0
+	i := itertools.OrderedIterator[int](func(yield func(int) bool) {
+		for _, v := range values {
+			visited++
+			if !yield(v) {
+				return
+			}
+		}
+	}).Shuffle()
+	if visited != len(values) {
+		t.Fatalf("Shuffle before iteration visited %d values, want %d", visited, len(values))
+	}
+	want := i.Collect()
+	if len(want) != len(values) {
+		t.Fatalf("Shuffle yielded %d values, want %d", len(want), len(values))
+	}
+
+	var got []int
+	for v := range i {
+		got = append(got, v)
+		if len(got) == 2 {
+			break
+		}
+	}
+	if !slices.Equal(got, want[:2]) {
+		t.Errorf("Shuffle after break = %v, want %v", got, want[:2])
+	}
+	if got := i.Collect(); !slices.Equal(got, want) {
+		t.Errorf("Shuffle after restart = %v, want %v", got, want)
+	}
+	if visited != len(values) {
+		t.Errorf("Shuffle after iteration visited %d source values, want %d", visited, len(values))
+	}
+}
+
 func TestOrderedIteratorTakeWhileUnique(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, itertools.ToOrderedIterator([]int{1, 2, 3, 1}).TakeWhile(func(v int) bool { return v < 3 }).Collect(), "TakeWhile")
 	assert.Equal(t, []int{2, 1, 3}, itertools.ToOrderedIterator([]int{2, 1, 2, 3, 1}).Unique().Collect(), "Unique")

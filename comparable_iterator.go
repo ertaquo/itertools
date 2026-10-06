@@ -2,6 +2,7 @@ package itertools
 
 import (
 	"iter"
+	"math/rand/v2"
 	"slices"
 	"sync"
 
@@ -878,6 +879,19 @@ func (i ComparableIterator[V]) Reverse() Iterator[V] {
 	s := i.Collect()
 	slices.Reverse(s)
 	return ToIterator(s)
+}
+
+// Shuffle returns an iterator over the values in random order. The shuffle is not
+// guaranteed to be stable.
+//
+// This reads all values before returning the new iterator and may be slow for
+// large inputs.
+func (i ComparableIterator[V]) Shuffle() ComparableIterator[V] {
+	s := i.Collect()
+	rand.Shuffle(len(s), func(i, j int) {
+		s[i], s[j] = s[j], s[i]
+	})
+	return ToComparableIterator(s)
 }
 
 // Skip returns an iterator that discards the first n values. A nonpositive n

@@ -766,6 +766,17 @@ func ExampleOrderedIterator_Reverse() {
 	// Output: [3 2 1]
 }
 
+func ExampleOrderedIterator_Shuffle() {
+	names := itertools.ToOrderedIterator([]string{"Alice", "Bob", "Vera"})
+	for name := range names.Shuffle() {
+		fmt.Println(name)
+	}
+	// Unordered output:
+	// Vera
+	// Alice
+	// Bob
+}
+
 func ExampleOrderedIterator_Skip() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3, 4})
 	fmt.Println(i.Skip(2).Collect())

@@ -594,6 +594,17 @@ func ExampleComparableIterator_Reverse() {
 	// Output: [blue green red]
 }
 
+func ExampleComparableIterator_Shuffle() {
+	names := itertools.ToComparableIterator([]string{"Alice", "Bob", "Vera"})
+	for name := range names.Shuffle() {
+		fmt.Println(name)
+	}
+	// Unordered output:
+	// Vera
+	// Alice
+	// Bob
+}
+
 func ExampleComparableIterator_Skip() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "blue"})
 	fmt.Println(values.Skip(1).Collect())
