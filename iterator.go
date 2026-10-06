@@ -419,6 +419,19 @@ func (i Iterator[V]) Concat(another Iterator[V]) Iterator[V] {
 	}
 }
 
+// Indexed returns a MapIterator that yields each value with its zero-based index.
+func (i Iterator[V]) Indexed() MapIterator[int, V] {
+	return func(yield func(int, V) bool) {
+		index := 0
+		for v := range i {
+			if !yield(index, v) {
+				return
+			}
+			index++
+		}
+	}
+}
+
 // Last returns a pointer to the last value, or nil if the iterator is empty.
 func (i Iterator[V]) Last() *V {
 	var last *V

@@ -363,6 +363,17 @@ func ExampleComparableIterator_GetOrNone() {
 	// 0
 }
 
+func ExampleComparableIterator_Indexed() {
+	names := itertools.ToComparableIterator([]string{"Alice", "Bob", "Vera"})
+	for index, name := range names.Indexed() {
+		fmt.Println(index, name)
+	}
+	// Output:
+	// 0 Alice
+	// 1 Bob
+	// 2 Vera
+}
+
 func ExampleComparableIterator_Last() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "blue"})
 	fmt.Println(*values.Last())

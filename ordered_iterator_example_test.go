@@ -604,6 +604,17 @@ func ExampleOrderedIterator_GetOrNone() {
 	// 0
 }
 
+func ExampleOrderedIterator_Indexed() {
+	names := itertools.ToOrderedIterator([]string{"Alice", "Bob", "Vera"})
+	for index, name := range names.Indexed() {
+		fmt.Println(index, name)
+	}
+	// Output:
+	// 0 Alice
+	// 1 Bob
+	// 2 Vera
+}
+
 func ExampleOrderedIterator_Last() {
 	i := itertools.ToOrderedIterator([]int{3, 1, 2})
 	fmt.Println(*i.Last())

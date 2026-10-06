@@ -296,6 +296,17 @@ func ExampleIterator_FirstOrNone() {
 	// ""
 }
 
+func ExampleIterator_Indexed() {
+	names := itertools.ToIterator([]string{"Alice", "Bob", "Vera"})
+	for index, name := range names.Indexed() {
+		fmt.Println(index, name)
+	}
+	// Output:
+	// 0 Alice
+	// 1 Bob
+	// 2 Vera
+}
+
 func ExampleIterator_Last() {
 	names := itertools.ToIterator([]string{"Alice", "Bob", "Vera"})
 	if name := names.Last(); name != nil {

@@ -3,6 +3,7 @@ package itertools_test
 import (
 	"cmp"
 	"errors"
+	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -331,6 +332,73 @@ func TestComparableIteratorFirstLastGet(t *testing.T) {
 	}
 	if got := i.GetOrNone(3); got != 0 {
 		t.Errorf("GetOrNone(missing) = %d", got)
+	}
+}
+
+func TestComparableIteratorIndexed(t *testing.T) {
+	type pair struct {
+		index, value int
+	}
+	for _, tt := range []struct {
+		name   string
+		values []int
+		want   []pair
+	}{
+		{"nil", nil, nil},
+		{"empty", []int{}, nil},
+		{"single zero", []int{0}, []pair{{0, 0}}},
+		{"single nonzero", []int{5}, []pair{{0, 5}}},
+		{"mixed", []int{3, -1, 3, 0, 2}, []pair{{0, 3}, {1, -1}, {2, 3}, {3, 0}, {4, 2}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			i := itertools.ToComparableIterator(tt.values).Indexed()
+			for pass := range 2 {
+				var got []pair
+				for index, value := range i {
+					got = append(got, pair{index, value})
+				}
+				if !slices.Equal(got, tt.want) {
+					t.Errorf("Indexed(%v), pass %d = %v, want %v", tt.values, pass, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestComparableIteratorIndexedRange(t *testing.T) {
+	visited := 0
+	i := itertools.ComparableIterator[int](func(yield func(int) bool) {
+		for _, v := range []int{10, 20, 30} {
+			visited++
+			if !yield(v) {
+				return
+			}
+		}
+	}).Indexed()
+	if visited != 0 {
+		t.Fatalf("Indexed visited %d values before iteration, want 0", visited)
+	}
+
+	var got [][2]int
+	for index, value := range i {
+		got = append(got, [2]int{index, value})
+		if len(got) == 2 {
+			break
+		}
+	}
+	if want := [][2]int{{0, 10}, {1, 20}}; !slices.Equal(got, want) {
+		t.Errorf("Indexed after break = %v, want %v", got, want)
+	}
+	if visited != 2 {
+		t.Errorf("Indexed visited %d values after break, want 2", visited)
+	}
+
+	got = nil
+	for index, value := range i {
+		got = append(got, [2]int{index, value})
+	}
+	if want := [][2]int{{0, 10}, {1, 20}, {2, 30}}; !slices.Equal(got, want) {
+		t.Errorf("Indexed after restart = %v, want %v", got, want)
 	}
 }
 

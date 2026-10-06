@@ -535,6 +535,19 @@ func (i ComparableIterator[V]) GetOrNone[N constraints.Signed | constraints.Unsi
 	return none
 }
 
+// Indexed returns a MapIterator that yields each value with its zero-based index.
+func (i ComparableIterator[V]) Indexed() MapIterator[int, V] {
+	return func(yield func(int, V) bool) {
+		index := 0
+		for v := range i {
+			if !yield(index, v) {
+				return
+			}
+			index++
+		}
+	}
+}
+
 // Last returns a pointer to the last value, or nil if the iterator is empty.
 func (i ComparableIterator[V]) Last() *V {
 	var last *V
