@@ -588,6 +588,13 @@ func ExampleComparableIterator_ReduceWithError() {
 	// negative number: -1
 }
 
+func ExampleComparableIterator_Repeat() {
+	names := itertools.ToComparableIterator([]string{"Alice", "Bob"})
+	fmt.Println(names.Repeat(3).Collect())
+	// Output:
+	// [Alice Bob Alice Bob Alice Bob]
+}
+
 func ExampleComparableIterator_Reverse() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "blue"})
 	fmt.Println(values.Reverse().Collect())

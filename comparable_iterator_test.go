@@ -637,6 +637,88 @@ func TestComparableIteratorReduceWithError(t *testing.T) {
 	}
 }
 
+func TestComparableIteratorRepeat(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []int
+		n      int
+		want   []int
+	}{
+		{"nil", nil, 3, nil},
+		{"empty", []int{}, 3, nil},
+		{"negative", []int{1, 2}, -1, nil},
+		{"zero", []int{1, 2}, 0, nil},
+		{"once", []int{1, 2}, 1, []int{1, 2}},
+		{"twice", []int{1, 2}, 2, []int{1, 2, 1, 2}},
+		{"single", []int{5}, 3, []int{5, 5, 5}},
+		{"duplicates", []int{0, -1, -1}, 3, []int{0, -1, -1, 0, -1, -1, 0, -1, -1}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var got []int
+			for v := range itertools.ToComparableIterator(tt.values).Repeat(tt.n) {
+				got = append(got, v)
+				if len(got) > len(tt.want) {
+					break
+				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Repeat(%v, %d) = %v, want %v", tt.values, tt.n, got, tt.want)
+			}
+		})
+	}
+
+	t.Run("unsigned", func(t *testing.T) {
+		got := itertools.ToComparableIterator([]int{1, 2}).Repeat(uint8(2)).Collect()
+		want := []int{1, 2, 1, 2}
+		if !slices.Equal(got, want) {
+			t.Errorf("Repeat with unsigned count = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestComparableIteratorRepeatRange(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		n, stop     int
+		want        []int
+		wantVisited int
+	}{
+		{"negative", -1, 1, nil, 0},
+		{"zero", 0, 1, nil, 0},
+		{"break in source", 3, 1, []int{1}, 1},
+		{"break in replay", 3, 4, []int{1, 2, 3, 1}, 3},
+		{"complete", 2, 7, []int{1, 2, 3, 1, 2, 3}, 3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			visited := 0
+			i := itertools.ComparableIterator[int](func(yield func(int) bool) {
+				for _, v := range []int{1, 2, 3} {
+					visited++
+					if !yield(v) {
+						return
+					}
+				}
+			}).Repeat(tt.n)
+			if visited != 0 {
+				t.Fatalf("Repeat visited %d values before iteration, want 0", visited)
+			}
+			var got []int
+			for v := range i {
+				got = append(got, v)
+				if len(got) == tt.stop {
+					break
+				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Repeat(%d) after iteration = %v, want %v", tt.n, got, tt.want)
+			}
+			if visited != tt.wantVisited {
+				t.Errorf("Repeat(%d) visited %d source values, want %d", tt.n, visited, tt.wantVisited)
+			}
+		})
+	}
+}
+
 func TestComparableIteratorReverseSkip(t *testing.T) {
 	i := itertools.ToComparableIterator([]int{1, 2, 3, 4})
 	assert.Equal(t, []int{4, 3, 2, 1}, i.Reverse().Collect(), "Reverse")

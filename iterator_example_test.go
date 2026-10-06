@@ -609,6 +609,13 @@ func ExampleIterator_ReduceWithError() {
 	// negative number: -1
 }
 
+func ExampleIterator_Repeat() {
+	names := itertools.ToIterator([]string{"Alice", "Bob"})
+	fmt.Println(names.Repeat(3).Collect())
+	// Output:
+	// [Alice Bob Alice Bob Alice Bob]
+}
+
 func ExampleIterator_Reverse() {
 	names := itertools.ToIterator([]string{"Alice", "Bob", "Vera"})
 	fmt.Println(names.Reverse().Collect())

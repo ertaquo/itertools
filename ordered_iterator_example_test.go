@@ -760,6 +760,13 @@ func ExampleOrderedIterator_ReduceWithError() {
 	// negative number: -1
 }
 
+func ExampleOrderedIterator_Repeat() {
+	names := itertools.ToOrderedIterator([]string{"Alice", "Bob"})
+	fmt.Println(names.Repeat(3).Collect())
+	// Output:
+	// [Alice Bob Alice Bob Alice Bob]
+}
+
 func ExampleOrderedIterator_Reverse() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3})
 	fmt.Println(i.Reverse().Collect())

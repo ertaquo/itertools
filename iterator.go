@@ -732,6 +732,36 @@ func (i Iterator[V]) ReduceWithError(startValue V, accumulator func(v V) (V, err
 	return curr, nil
 }
 
+// Repeat returns an iterator that yields the values of i n times in order. It
+// yields nothing if n is not positive. The returned iterator retains its remaining
+// repeat count across traversals.
+func (i Iterator[V]) Repeat[N constraints.Signed | constraints.Unsigned](n N) Iterator[V] {
+	var items []V
+
+	return func(yield func(V) bool) {
+		if n <= 0 {
+			return
+		}
+
+		for v := range i {
+			items = append(items, v)
+			if !yield(v) {
+				return
+			}
+		}
+		n--
+
+		for n > 0 {
+			for _, v := range items {
+				if !yield(v) {
+					return
+				}
+			}
+			n--
+		}
+	}
+}
+
 // Reverse returns an iterator over the values in reverse order.
 //
 // This reads all values before returning the new iterator and may be slow for
