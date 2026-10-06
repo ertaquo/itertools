@@ -129,6 +129,29 @@ func (i ComparableIterator[V]) FilterNone() ComparableIterator[V] {
 	}
 }
 
+// GroupBy returns an iterator over groups of values that share the same key. It
+// collects all values before yielding any groups and retains that state across
+// traversals. The order of groups is unspecified.
+//
+// This reads all values before returning the new iterator and may be slow for
+// large inputs.
+func (i ComparableIterator[V]) GroupBy[K comparable](keyFunc func(v V) K) MapIterator[K, []V] {
+	groups := make(map[K][]V)
+
+	for v := range i {
+		key := keyFunc(v)
+		groups[key] = append(groups[key], v)
+	}
+
+	return func(yield func(K, []V) bool) {
+		for k, group := range groups {
+			if !yield(k, group) {
+				return
+			}
+		}
+	}
+}
+
 // Unique returns an iterator that yields only the first occurrence of each value.
 // It uses a map to track seen values and retains that state across traversals.
 func (i ComparableIterator[V]) Unique() ComparableIterator[V] {

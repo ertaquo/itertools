@@ -79,6 +79,20 @@ func ExampleComparableIterator_EqualFunc() {
 	// Output: true
 }
 
+func ExampleComparableIterator_GroupBy() {
+	words := itertools.ToComparableIterator([]string{"Go", "Rust", "C", "Java", "Go"})
+	groups := words.GroupBy(func(word string) int {
+		return len(word)
+	})
+	for length, group := range groups {
+		fmt.Println(length, group)
+	}
+	// Unordered output:
+	// 1 [C]
+	// 2 [Go Go]
+	// 4 [Rust Java]
+}
+
 func ExampleComparableIterator_Unique() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "red", "blue", "green"})
 	fmt.Println(values.Unique().Collect())

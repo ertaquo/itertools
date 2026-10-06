@@ -3,6 +3,7 @@ package itertools_test
 import (
 	"cmp"
 	"errors"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -660,6 +661,78 @@ func TestComparableIteratorSorted(t *testing.T) {
 func TestComparableIteratorTakeWhileUnique(t *testing.T) {
 	assert.Equal(t, []int{1, 2}, itertools.ToComparableIterator([]int{1, 2, 3, 1}).TakeWhile(func(v int) bool { return v < 3 }).Collect(), "TakeWhile")
 	assert.Equal(t, []int{2, 1, 3}, itertools.ToComparableIterator([]int{2, 1, 2, 3, 1}).Unique().Collect(), "Unique")
+}
+
+func TestComparableIteratorGroupBy(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []int
+		want   map[bool][]int
+	}{
+		{"nil", nil, nil},
+		{"empty", []int{}, nil},
+		{"single", []int{3}, map[bool][]int{false: {3}}},
+		{"one group", []int{4, 2, 4}, map[bool][]int{true: {4, 2, 4}}},
+		{"mixed", []int{3, 2, 3, 0, -1, 4}, map[bool][]int{false: {3, 3, -1}, true: {2, 0, 4}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var called []int
+			groups := itertools.ToComparableIterator(tt.values).GroupBy(func(v int) bool {
+				called = append(called, v)
+				return v%2 == 0
+			})
+			got := make(map[bool][]int)
+			for key, group := range groups {
+				if _, ok := got[key]; ok {
+					t.Errorf("GroupBy yielded key %v more than once", key)
+				}
+				got[key] = group
+			}
+			if !maps.EqualFunc(got, tt.want, slices.Equal[[]int]) {
+				t.Errorf("GroupBy(%v) = %v, want %v", tt.values, got, tt.want)
+			}
+			if !slices.Equal(called, tt.values) {
+				t.Errorf("GroupBy key function values = %v, want %v", called, tt.values)
+			}
+		})
+	}
+}
+
+func TestComparableIteratorGroupByRange(t *testing.T) {
+	values := []int{3, 2, 3, 0, -1}
+	visited := 0
+	i := itertools.ComparableIterator[int](func(yield func(int) bool) {
+		for _, v := range values {
+			visited++
+			if !yield(v) {
+				return
+			}
+		}
+	})
+	var called []int
+	groups := i.GroupBy(func(v int) bool {
+		called = append(called, v)
+		return v%2 == 0
+	})
+	if visited != len(values) || !slices.Equal(called, values) {
+		t.Fatalf("GroupBy before iteration visited %d values and made key calls %v, want %d, %v", visited, called, len(values), values)
+	}
+
+	want := map[bool][]int{false: {3, 3, -1}, true: {2, 0}}
+	yielded := 0
+	for key, group := range groups {
+		yielded++
+		if visited != len(values) || !slices.Equal(called, values) {
+			t.Errorf("GroupBy before yielding visited %d values and made key calls %v, want %d, %v", visited, called, len(values), values)
+		}
+		if !slices.Equal(group, want[key]) {
+			t.Errorf("GroupBy group %v = %v, want %v", key, group, want[key])
+		}
+		break
+	}
+	if yielded != 1 {
+		t.Errorf("GroupBy after break yielded %d groups, want 1", yielded)
+	}
 }
 
 func TestComparableIteratorUniqueFunc(t *testing.T) {

@@ -358,6 +358,20 @@ func ExampleOrderedIterator_Contains() {
 	// false
 }
 
+func ExampleOrderedIterator_GroupBy() {
+	words := itertools.ToOrderedIterator([]string{"Go", "Rust", "C", "Java", "Go"})
+	groups := words.GroupBy(func(word string) int {
+		return len(word)
+	})
+	for length, group := range groups {
+		fmt.Println(length, group)
+	}
+	// Unordered output:
+	// 1 [C]
+	// 2 [Go Go]
+	// 4 [Rust Java]
+}
+
 func ExampleOrderedIterator_Unique() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 1, 3, 2})
 	fmt.Println(i.Unique().Collect())
