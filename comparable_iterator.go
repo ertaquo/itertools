@@ -112,6 +112,23 @@ func (i ComparableIterator[V]) EqualFunc[A Iterator[V] | ComparableIterator[V]](
 	}
 }
 
+// FilterNone returns an iterator over values that are not the zero value of V. It
+// evaluates each value as it is requested.
+func (i ComparableIterator[V]) FilterNone() ComparableIterator[V] {
+	var none V
+	return func(yield func(V) bool) {
+		for v := range i {
+			if v == none {
+				continue
+			}
+
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
 // Unique returns an iterator that yields only the first occurrence of each value.
 // It uses a map to track seen values and retains that state across traversals.
 func (i ComparableIterator[V]) Unique() ComparableIterator[V] {

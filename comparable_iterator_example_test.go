@@ -191,6 +191,12 @@ func ExampleComparableIterator_Count() {
 	// Output: 3
 }
 
+func ExampleComparableIterator_FilterNone() {
+	values := itertools.ToComparableIterator([]int{0, 1, 0, 2, 3, 0})
+	fmt.Println(values.FilterNone().Collect())
+	// Output: [1 2 3]
+}
+
 func ExampleComparableIterator_Filter() {
 	values := itertools.ToComparableIterator([]int{1, 2, 3, 4, 5})
 	even := values.Filter(func(value int) bool { return value%2 == 0 })

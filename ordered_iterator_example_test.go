@@ -437,6 +437,12 @@ func ExampleOrderedIterator_Count() {
 	// Output: 3
 }
 
+func ExampleOrderedIterator_FilterNone() {
+	values := itertools.ToOrderedIterator([]int{0, 1, 0, 2, 3, 0})
+	fmt.Println(values.FilterNone().Collect())
+	// Output: [1 2 3]
+}
+
 func ExampleOrderedIterator_Filter() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3, 4})
 	even := i.Filter(func(v int) bool { return v%2 == 0 })

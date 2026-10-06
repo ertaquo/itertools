@@ -149,6 +149,76 @@ func TestComparableIteratorFilter(t *testing.T) {
 	}
 }
 
+func TestComparableIteratorFilterNone(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		values, want []int
+	}{
+		{"nil", nil, nil},
+		{"empty", []int{}, nil},
+		{"single zero", []int{0}, nil},
+		{"single nonzero", []int{-1}, []int{-1}},
+		{"all zero", []int{0, 0, 0}, nil},
+		{"no zero", []int{3, -1, 3, 2}, []int{3, -1, 3, 2}},
+		{"mixed", []int{0, 3, 0, -1, 3, 0, 2, 0}, []int{3, -1, 3, 2}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := itertools.ToComparableIterator(tt.values).FilterNone().Collect()
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("FilterNone(%v) = %v, want %v", tt.values, got, tt.want)
+			}
+		})
+	}
+
+	t.Run("strings", func(t *testing.T) {
+		values := []string{"", "Go", "", " ", "Go", ""}
+		want := []string{"Go", " ", "Go"}
+		if got := itertools.ToComparableIterator(values).FilterNone().Collect(); !slices.Equal(got, want) {
+			t.Errorf("FilterNone(%q) = %q, want %q", values, got, want)
+		}
+	})
+
+	t.Run("floats", func(t *testing.T) {
+		values := []float64{0, -1.5, math.Copysign(0, -1), math.NaN(), math.Inf(1), 2.5, 0}
+		want := []float64{-1.5, math.NaN(), math.Inf(1), 2.5}
+		equal := func(a, b float64) bool { return a == b || math.IsNaN(a) && math.IsNaN(b) }
+		if got := itertools.ToComparableIterator(values).FilterNone().Collect(); !slices.EqualFunc(got, want, equal) {
+			t.Errorf("FilterNone(%v) = %v, want %v", values, got, want)
+		}
+	})
+}
+
+func TestComparableIteratorFilterNoneRange(t *testing.T) {
+	visited := 0
+	i := itertools.ComparableIterator[int](func(yield func(int) bool) {
+		for _, v := range []int{0, 0, 5, 0, 7} {
+			visited++
+			if !yield(v) {
+				return
+			}
+		}
+	}).FilterNone()
+	if visited != 0 {
+		t.Fatalf("FilterNone visited %d values before iteration, want 0", visited)
+	}
+
+	var got []int
+	for v := range i {
+		got = append(got, v)
+		break
+	}
+	if want := []int{5}; !slices.Equal(got, want) {
+		t.Errorf("FilterNone after break = %v, want %v", got, want)
+	}
+	if visited != 3 {
+		t.Errorf("FilterNone visited %d values after break, want 3", visited)
+	}
+
+	if got := i.Collect(); !slices.Equal(got, []int{5, 7}) {
+		t.Errorf("FilterNone after restart = %v, want [5 7]", got)
+	}
+}
+
 func TestComparableIteratorFilterWithError(t *testing.T) {
 	bad := errors.New("bad value")
 	f := func(v int) (bool, error) {

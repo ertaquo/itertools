@@ -150,6 +150,23 @@ func (i OrderedIterator[V]) EqualFunc[A Iterator[V] | ComparableIterator[V] | Or
 	}
 }
 
+// FilterNone returns an iterator over values that are not the zero value of V. It
+// evaluates each value as it is requested.
+func (i OrderedIterator[V]) FilterNone() OrderedIterator[V] {
+	var none V
+	return func(yield func(V) bool) {
+		for v := range i {
+			if v == none {
+				continue
+			}
+
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
 // Max returns a pointer to the greatest value, or nil if the iterator is empty.
 func (i OrderedIterator[V]) Max() *V {
 	return i.MaxFunc(cmp.Compare)
