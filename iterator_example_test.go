@@ -591,6 +591,24 @@ func ExampleIterator_Reduce() {
 	// 6
 }
 
+func ExampleIterator_ReduceWithError() {
+	numbers := itertools.ToIterator([]int{1, 2, 3, -1, 4})
+	sum := 0
+	total, err := numbers.ReduceWithError(0, func(n int) (int, error) {
+		if n < 0 {
+			return sum, fmt.Errorf("negative number: %d", n)
+		}
+		// The callback receives each value; keep the running sum in the closure.
+		sum += n
+		return sum, nil
+	})
+	fmt.Println(total)
+	fmt.Println(err)
+	// Output:
+	// 6
+	// negative number: -1
+}
+
 func ExampleIterator_Reverse() {
 	names := itertools.ToIterator([]string{"Alice", "Bob", "Vera"})
 	fmt.Println(names.Reverse().Collect())

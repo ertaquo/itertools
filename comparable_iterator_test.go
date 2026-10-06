@@ -585,6 +585,57 @@ func TestComparableIteratorReduce(t *testing.T) {
 	}
 }
 
+func TestComparableIteratorReduceWithError(t *testing.T) {
+	bad := errors.New("bad value")
+	for _, tt := range []struct {
+		name       string
+		values     []int
+		start      int
+		failAt     int
+		want       int
+		wantErr    error
+		wantValues []int
+	}{
+		{"nil", nil, 9, 0, 9, nil, nil},
+		{"empty", []int{}, 9, 0, 9, nil, nil},
+		{"zero start", nil, 0, 0, 0, nil, nil},
+		{"single", []int{5}, 9, 0, 10, nil, []int{5}},
+		{"multiple", []int{3, -1, 3, 0, 2}, 9, 0, 4, nil, []int{3, -1, 3, 0, 2}},
+		{"zero result", []int{3, 0}, 9, 0, 0, nil, []int{3, 0}},
+		{"error first", []int{1, 2, 3}, 9, 1, 2, bad, []int{1}},
+		{"error middle", []int{1, 2, 3}, 9, 2, 4, bad, []int{1, 2}},
+		{"error last", []int{1, 2, 3}, 9, 3, 6, bad, []int{1, 2, 3}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var visited, called []int
+			i := itertools.ComparableIterator[int](func(yield func(int) bool) {
+				for _, v := range tt.values {
+					visited = append(visited, v)
+					if !yield(v) {
+						return
+					}
+				}
+			})
+			got, err := i.ReduceWithError(tt.start, func(v int) (int, error) {
+				called = append(called, v)
+				if len(called) == tt.failAt {
+					return v * 2, bad
+				}
+				return v * 2, nil
+			})
+			if got != tt.want || err != tt.wantErr {
+				t.Errorf("ReduceWithError(%v, %d) = %d, %v, want %d, %v", tt.values, tt.start, got, err, tt.want, tt.wantErr)
+			}
+			if !slices.Equal(called, tt.wantValues) {
+				t.Errorf("ReduceWithError accumulator values = %v, want %v", called, tt.wantValues)
+			}
+			if !slices.Equal(visited, tt.wantValues) {
+				t.Errorf("ReduceWithError source values = %v, want %v", visited, tt.wantValues)
+			}
+		})
+	}
+}
+
 func TestComparableIteratorReverseSkip(t *testing.T) {
 	i := itertools.ToComparableIterator([]int{1, 2, 3, 4})
 	assert.Equal(t, []int{4, 3, 2, 1}, i.Reverse().Collect(), "Reverse")

@@ -970,6 +970,22 @@ func (i OrderedIterator[V]) Reduce(startValue V, accumulator func(v V) V) V {
 	return curr
 }
 
+// ReduceWithError returns startValue for an empty iterator. Otherwise it calls
+// accumulator for each value and returns the last result; accumulator does not
+// receive the preceding result. If accumulator returns an error, ReduceWithError
+// stops and returns the last result and that error.
+func (i OrderedIterator[V]) ReduceWithError(startValue V, accumulator func(v V) (V, error)) (V, error) {
+	curr := startValue
+	for v := range i {
+		var err error
+		curr, err = accumulator(v)
+		if err != nil {
+			return curr, err
+		}
+	}
+	return curr, nil
+}
+
 // Reverse returns an iterator over the values in reverse order.
 //
 // This reads all values before returning the new iterator and may be slow for

@@ -728,6 +728,24 @@ func ExampleOrderedIterator_Reduce() {
 	// Output: 6
 }
 
+func ExampleOrderedIterator_ReduceWithError() {
+	numbers := itertools.ToOrderedIterator([]int{1, 2, 3, -1, 4})
+	sum := 0
+	total, err := numbers.ReduceWithError(0, func(n int) (int, error) {
+		if n < 0 {
+			return sum, fmt.Errorf("negative number: %d", n)
+		}
+		// The callback receives each value; keep the running sum in the closure.
+		sum += n
+		return sum, nil
+	})
+	fmt.Println(total)
+	fmt.Println(err)
+	// Output:
+	// 6
+	// negative number: -1
+}
+
 func ExampleOrderedIterator_Reverse() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3})
 	fmt.Println(i.Reverse().Collect())
