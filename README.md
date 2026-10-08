@@ -45,8 +45,9 @@ Use `Iterator` for any values, `ComparableIterator` for equality and uniqueness,
 `OrderedIterator` for ordered values, and `MapIterator` for key/value pairs.
 Prefer `OrderedIterator` when the value type satisfies `cmp.Ordered`.
 
-Parallel operations accept `WithLimit(n)` to limit concurrency; their result
-order may be unspecified.
+Operations run sequentially by default. Pass `WithParallel()` to run callbacks
+concurrently, or `WithParallelLimit(n)` to limit concurrency. Parallel results
+and callback order are unspecified.
 
 See the [API reference](https://pkg.go.dev/github.com/ertaquo/itertools) for examples.
 

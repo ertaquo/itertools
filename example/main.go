@@ -21,10 +21,10 @@ func main() {
 			return strconv.Itoa(n)
 		}).
 		Concat(itertools.ToIterator([]string{"6", "seven", "8"})).
-		MapAndCollectWithErrorParallel(func(s string) (int, error) {
+		MapAndCollectWithError(func(s string) (int, error) {
 			time.Sleep(1 * time.Second)
 			return strconv.Atoi(s)
-		})
+		}, itertools.WithParallel())
 
 	fmt.Println(result, err)
 }

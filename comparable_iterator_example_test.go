@@ -239,9 +239,9 @@ func ExampleComparableIterator_FilterAndCollectWithError() {
 	// negative value: -1
 }
 
-func ExampleComparableIterator_FilterAndCollectParallel() {
+func ExampleComparableIterator_FilterAndCollect_parallel() {
 	values := itertools.ToComparableIterator([]int{1, 2, 3, 4, 5, 6})
-	even := values.FilterAndCollectParallel(func(value int) bool { return value%2 == 0 })
+	even := values.FilterAndCollect(func(value int) bool { return value%2 == 0 }, itertools.WithParallel())
 	for _, value := range even {
 		fmt.Println(value)
 	}
@@ -251,14 +251,14 @@ func ExampleComparableIterator_FilterAndCollectParallel() {
 	// 6
 }
 
-func ExampleComparableIterator_FilterAndCollectWithErrorParallel() {
+func ExampleComparableIterator_FilterAndCollectWithError_parallel() {
 	values := itertools.ToComparableIterator([]int{2, -1, 4})
-	even, err := values.FilterAndCollectWithErrorParallel(func(value int) (bool, error) {
+	even, err := values.FilterAndCollectWithError(func(value int) (bool, error) {
 		if value < 0 {
 			return false, fmt.Errorf("negative value: %d", value)
 		}
 		return value%2 == 0, nil
-	})
+	}, itertools.WithParallel())
 	for _, value := range even {
 		fmt.Println(value)
 	}
@@ -347,12 +347,12 @@ func ExampleComparableIterator_ForEach() {
 	// <nil>
 }
 
-func ExampleComparableIterator_ForEachParallel() {
+func ExampleComparableIterator_ForEach_parallel() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "blue"})
-	err := values.ForEachParallel(func(value string) error {
+	err := values.ForEach(func(value string) error {
 		fmt.Println(strings.ToUpper(value))
 		return nil
-	})
+	}, itertools.WithParallel())
 	fmt.Println(err)
 	// Unordered output:
 	// RED
@@ -443,9 +443,9 @@ func ExampleComparableIterator_MapAndCollect() {
 	// Output: [RED GREEN BLUE]
 }
 
-func ExampleComparableIterator_MapAndCollectParallel() {
+func ExampleComparableIterator_MapAndCollect_parallel() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "blue"})
-	upper := values.MapAndCollectParallel(strings.ToUpper)
+	upper := values.MapAndCollect(strings.ToUpper, itertools.WithParallel())
 	for _, value := range upper {
 		fmt.Println(value)
 	}
@@ -465,9 +465,9 @@ func ExampleComparableIterator_MapAndCollectWithError() {
 	// strconv.Atoi: parsing "oops": invalid syntax
 }
 
-func ExampleComparableIterator_MapAndCollectWithErrorParallel() {
+func ExampleComparableIterator_MapAndCollectWithError_parallel() {
 	values := itertools.ToComparableIterator([]string{"10", "oops", "20"})
-	numbers, err := values.MapAndCollectWithErrorParallel(strconv.Atoi)
+	numbers, err := values.MapAndCollectWithError(strconv.Atoi, itertools.WithParallel())
 	for _, value := range numbers {
 		fmt.Println(value)
 	}

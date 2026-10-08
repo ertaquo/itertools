@@ -483,9 +483,9 @@ func ExampleOrderedIterator_FilterAndCollectWithError() {
 	// Output: [2] negative value
 }
 
-func ExampleOrderedIterator_FilterAndCollectParallel() {
+func ExampleOrderedIterator_FilterAndCollect_parallel() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3, 4})
-	values := i.FilterAndCollectParallel(func(v int) bool { return v%2 == 0 })
+	values := i.FilterAndCollect(func(v int) bool { return v%2 == 0 }, itertools.WithParallel())
 	for _, v := range values {
 		fmt.Println(v)
 	}
@@ -494,14 +494,14 @@ func ExampleOrderedIterator_FilterAndCollectParallel() {
 	// 4
 }
 
-func ExampleOrderedIterator_FilterAndCollectWithErrorParallel() {
+func ExampleOrderedIterator_FilterAndCollectWithError_parallel() {
 	i := itertools.ToOrderedIterator([]int{1, 2, -3, 4})
-	values, err := i.FilterAndCollectWithErrorParallel(func(v int) (bool, error) {
+	values, err := i.FilterAndCollectWithError(func(v int) (bool, error) {
 		if v < 0 {
 			return false, errors.New("negative value")
 		}
 		return v%2 == 0, nil
-	})
+	}, itertools.WithParallel())
 	for _, v := range values {
 		fmt.Println(v)
 	}
@@ -589,12 +589,12 @@ func ExampleOrderedIterator_ForEach() {
 	// <nil>
 }
 
-func ExampleOrderedIterator_ForEachParallel() {
+func ExampleOrderedIterator_ForEach_parallel() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3})
-	err := i.ForEachParallel(func(v int) error {
+	err := i.ForEach(func(v int) error {
 		fmt.Println(v)
 		return nil
-	})
+	}, itertools.WithParallel())
 	fmt.Println(err)
 	// Unordered output:
 	// 1
@@ -686,9 +686,9 @@ func ExampleOrderedIterator_MapAndCollect() {
 	// Output: [item-1 item-2 item-3]
 }
 
-func ExampleOrderedIterator_MapAndCollectParallel() {
+func ExampleOrderedIterator_MapAndCollect_parallel() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 3})
-	labels := i.MapAndCollectParallel(func(v int) string { return fmt.Sprintf("item-%d", v) })
+	labels := i.MapAndCollect(func(v int) string { return fmt.Sprintf("item-%d", v) }, itertools.WithParallel())
 	for _, label := range labels {
 		fmt.Println(label)
 	}
@@ -710,14 +710,14 @@ func ExampleOrderedIterator_MapAndCollectWithError() {
 	// Output: [item-1 item-2] negative value
 }
 
-func ExampleOrderedIterator_MapAndCollectWithErrorParallel() {
+func ExampleOrderedIterator_MapAndCollectWithError_parallel() {
 	i := itertools.ToOrderedIterator([]int{1, 2, -3, 4})
-	labels, err := i.MapAndCollectWithErrorParallel(func(v int) (string, error) {
+	labels, err := i.MapAndCollectWithError(func(v int) (string, error) {
 		if v < 0 {
 			return "", errors.New("negative value")
 		}
 		return fmt.Sprintf("item-%d", v), nil
-	})
+	}, itertools.WithParallel())
 	for _, label := range labels {
 		fmt.Println(label)
 	}

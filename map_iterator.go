@@ -204,9 +204,38 @@ func (i MapIterator[K, V]) Filter(filterFunc func(key K, value V) bool) MapItera
 	}
 }
 
-// FilterAndCollect returns a map of pairs for which filterFunc returns true. A
-// later matching occurrence of a key replaces an earlier value.
-func (i MapIterator[K, V]) FilterAndCollect(filterFunc func(key K, value V) bool) map[K]V {
+// FilterAndCollect returns a map of pairs for which filterFunc returns true. By
+// default, a later matching occurrence of a key replaces an earlier value.
+// With [WithParallel] or [WithParallelLimit], callbacks run concurrently; if a key
+// repeats, the retained value depends on worker completion order.
+func (i MapIterator[K, V]) FilterAndCollect(filterFunc func(key K, value V) bool, options ...Option) map[K]V {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+		result := make(map[K]V)
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+		for k, v := range i {
+			wg.Go(func() error {
+				if filterFunc(k, v) {
+					resultMutex.Lock()
+					result[k] = v
+					resultMutex.Unlock()
+				}
+				return nil
+			})
+		}
+
+		_ = wg.Wait()
+		return result
+	}
+
+	// Non-parallel case
+
 	result := make(map[K]V)
 	for k, v := range i {
 		if filterFunc(k, v) {
@@ -216,9 +245,42 @@ func (i MapIterator[K, V]) FilterAndCollect(filterFunc func(key K, value V) bool
 	return result
 }
 
-// FilterAndCollectWithError is like FilterAndCollect, but stops and returns the
-// map collected so far if filterFunc returns an error.
-func (i MapIterator[K, V]) FilterAndCollectWithError(filterFunc func(key K, value V) (bool, error)) (map[K]V, error) {
+// FilterAndCollectWithError is like FilterAndCollect, but filterFunc may return
+// an error. By default, it stops and returns the results collected before the
+// first error. With [WithParallel] or [WithParallelLimit], it waits for all callbacks
+// and returns the collected matches and the first error, if any.
+func (i MapIterator[K, V]) FilterAndCollectWithError(filterFunc func(key K, value V) (bool, error), options ...Option) (map[K]V, error) {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+		result := make(map[K]V)
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+		for k, v := range i {
+			wg.Go(func() error {
+				ok, err := filterFunc(k, v)
+				if err != nil {
+					return err
+				}
+				if ok {
+					resultMutex.Lock()
+					result[k] = v
+					resultMutex.Unlock()
+				}
+				return nil
+			})
+		}
+
+		err := wg.Wait()
+		return result, err
+	}
+
+	// Non-parallel case
+
 	result := make(map[K]V)
 	for k, v := range i {
 		ok, err := filterFunc(k, v)
@@ -230,62 +292,6 @@ func (i MapIterator[K, V]) FilterAndCollectWithError(filterFunc func(key K, valu
 		}
 	}
 	return result, nil
-}
-
-// FilterAndCollectParallel filters pairs concurrently and returns a map of
-// matches. parallelOptions control the worker group. If a key repeats, the
-// retained value depends on worker completion order.
-func (i MapIterator[K, V]) FilterAndCollectParallel(filterFunc func(key K, value V) bool, parallelOptions ...ParallelOption) map[K]V {
-	var wg errgroup.Group
-	result := make(map[K]V)
-	var resultMutex sync.Mutex
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-	for k, v := range i {
-		wg.Go(func() error {
-			if filterFunc(k, v) {
-				resultMutex.Lock()
-				result[k] = v
-				resultMutex.Unlock()
-			}
-			return nil
-		})
-	}
-
-	_ = wg.Wait()
-	return result
-}
-
-// FilterAndCollectWithErrorParallel filters pairs concurrently and returns
-// collected matches and the first error, if any. If a key repeats, the retained
-// value depends on worker completion order.
-func (i MapIterator[K, V]) FilterAndCollectWithErrorParallel(filterFunc func(key K, value V) (bool, error), parallelOptions ...ParallelOption) (map[K]V, error) {
-	var wg errgroup.Group
-	result := make(map[K]V)
-	var resultMutex sync.Mutex
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-	for k, v := range i {
-		wg.Go(func() error {
-			ok, err := filterFunc(k, v)
-			if err != nil {
-				return err
-			}
-			if ok {
-				resultMutex.Lock()
-				result[k] = v
-				resultMutex.Unlock()
-			}
-			return nil
-		})
-	}
-
-	err := wg.Wait()
-	return result, err
 }
 
 // FilterKeys returns an iterator over pairs whose key satisfies filterFunc.
@@ -433,9 +439,31 @@ func (i MapIterator[K, V]) FindValueOrNone(matchFunc func(k K, v V) bool) V {
 	return none
 }
 
-// ForEach calls callback for each pair in order. It stops and returns the first
-// error from callback.
-func (i MapIterator[K, V]) ForEach(callback func(k K, v V) error) error {
+// ForEach calls callback for each pair. By default, calls run in iteration
+// order and stop at the first error. With [WithParallel] or [WithParallelLimit],
+// calls run concurrently in unspecified order; it waits for all callbacks and
+// returns the first error, if any.
+func (i MapIterator[K, V]) ForEach(callback func(k K, v V) error, options ...Option) error {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+
+		for k, v := range i {
+			wg.Go(func() error {
+				return callback(k, v)
+			})
+		}
+
+		return wg.Wait()
+	}
+
+	// Non-parallel case
+
 	for k, v := range i {
 		if err := callback(k, v); err != nil {
 			return err
@@ -443,25 +471,6 @@ func (i MapIterator[K, V]) ForEach(callback func(k K, v V) error) error {
 	}
 
 	return nil
-}
-
-// ForEachParallel calls callback for pairs concurrently and returns the first
-// error from the worker group. parallelOptions control concurrency; callback
-// calls may run out of order.
-func (i MapIterator[K, V]) ForEachParallel(callback func(k K, v V) error, parallelOptions ...ParallelOption) error {
-	var wg errgroup.Group
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-
-	for k, v := range i {
-		wg.Go(func() error {
-			return callback(k, v)
-		})
-	}
-
-	return wg.Wait()
 }
 
 // Get returns a pointer to the value of the first pair with key, or nil if no
@@ -559,8 +568,36 @@ func (i MapIterator[K, V]) Map[K2 comparable, V2 any](mapFunc func(key K, value 
 }
 
 // MapAndCollect applies mapFunc to every pair and collects the results into a
-// map. A later mapped key replaces an earlier value.
-func (i MapIterator[K, V]) MapAndCollect[K2 comparable, V2 any](mapFunc func(key K, value V) (K2, V2)) map[K2]V2 {
+// map. By default, a later mapped key replaces an earlier value. With
+// [WithParallel] or [WithParallelLimit], callbacks run concurrently; if mapped keys
+// repeat, the retained value depends on worker completion order.
+func (i MapIterator[K, V]) MapAndCollect[K2 comparable, V2 any](mapFunc func(key K, value V) (K2, V2), options ...Option) map[K2]V2 {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+		result := make(map[K2]V2)
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+		for k, v := range i {
+			wg.Go(func() error {
+				k2, v2 := mapFunc(k, v)
+				resultMutex.Lock()
+				result[k2] = v2
+				resultMutex.Unlock()
+				return nil
+			})
+		}
+
+		_ = wg.Wait()
+		return result
+	}
+
+	// Non-parallel case
+
 	result := make(map[K2]V2)
 	for k, v := range i {
 		k2, v2 := mapFunc(k, v)
@@ -569,34 +606,41 @@ func (i MapIterator[K, V]) MapAndCollect[K2 comparable, V2 any](mapFunc func(key
 	return result
 }
 
-// MapAndCollectParallel applies mapFunc concurrently and collects the results
-// into a map. If mapped keys repeat, the retained value depends on worker
-// completion order.
-func (i MapIterator[K, V]) MapAndCollectParallel[K2 comparable, V2 any](mapFunc func(key K, value V) (K2, V2), parallelOptions ...ParallelOption) map[K2]V2 {
-	var wg errgroup.Group
-	result := make(map[K2]V2)
-	var resultMutex sync.Mutex
+// MapAndCollectWithError applies mapFunc to every pair. By default, it stops and
+// returns the results collected before the first error. With [WithParallel] or
+// [WithParallelLimit], it waits for all callbacks and returns the collected results
+// and the first error, if any. In parallel mode, if mapped keys repeat, the retained
+// value depends on worker completion order.
+func (i MapIterator[K, V]) MapAndCollectWithError[K2 comparable, V2 any](mapFunc func(key K, value V) (K2, V2, error), options ...Option) (map[K2]V2, error) {
+	opts := toOptionsSet(options...)
 
-	for _, option := range parallelOptions {
-		option(&wg)
+	if opts.parallel {
+		var wg errgroup.Group
+		result := make(map[K2]V2)
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+		for k, v := range i {
+			wg.Go(func() error {
+				k2, v2, err := mapFunc(k, v)
+				if err != nil {
+					return err
+				}
+				resultMutex.Lock()
+				result[k2] = v2
+				resultMutex.Unlock()
+				return nil
+			})
+		}
+
+		err := wg.Wait()
+		return result, err
 	}
-	for k, v := range i {
-		wg.Go(func() error {
-			k2, v2 := mapFunc(k, v)
-			resultMutex.Lock()
-			result[k2] = v2
-			resultMutex.Unlock()
-			return nil
-		})
-	}
 
-	_ = wg.Wait()
-	return result
-}
+	// Non-parallel case
 
-// MapAndCollectWithError applies mapFunc in order and returns the map collected
-// before the first error.
-func (i MapIterator[K, V]) MapAndCollectWithError[K2 comparable, V2 any](mapFunc func(key K, value V) (K2, V2, error)) (map[K2]V2, error) {
 	result := make(map[K2]V2)
 	for k, v := range i {
 		k2, v2, err := mapFunc(k, v)
@@ -606,34 +650,6 @@ func (i MapIterator[K, V]) MapAndCollectWithError[K2 comparable, V2 any](mapFunc
 		result[k2] = v2
 	}
 	return result, nil
-}
-
-// MapAndCollectWithErrorParallel applies mapFunc concurrently and returns
-// collected results and the first error, if any. If mapped keys repeat, the
-// retained value depends on worker completion order.
-func (i MapIterator[K, V]) MapAndCollectWithErrorParallel[K2 comparable, V2 any](mapFunc func(key K, value V) (K2, V2, error), parallelOptions ...ParallelOption) (map[K2]V2, error) {
-	var wg errgroup.Group
-	result := make(map[K2]V2)
-	var resultMutex sync.Mutex
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-	for k, v := range i {
-		wg.Go(func() error {
-			k2, v2, err := mapFunc(k, v)
-			if err != nil {
-				return err
-			}
-			resultMutex.Lock()
-			result[k2] = v2
-			resultMutex.Unlock()
-			return nil
-		})
-	}
-
-	err := wg.Wait()
-	return result, err
 }
 
 // MapKeys returns an iterator that transforms each key with mapFunc and leaves

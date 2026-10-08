@@ -207,11 +207,11 @@ func ExampleIterator_FilterAndCollectWithError() {
 	// negative number: -1
 }
 
-func ExampleIterator_FilterAndCollectParallel() {
+func ExampleIterator_FilterAndCollect_parallel() {
 	numbers := itertools.ToIterator([]int{1, 2, 3, 4})
-	even := numbers.FilterAndCollectParallel(func(n int) bool {
+	even := numbers.FilterAndCollect(func(n int) bool {
 		return n%2 == 0
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for _, n := range even {
 		fmt.Println(n)
 	}
@@ -220,14 +220,14 @@ func ExampleIterator_FilterAndCollectParallel() {
 	// 4
 }
 
-func ExampleIterator_FilterAndCollectWithErrorParallel() {
+func ExampleIterator_FilterAndCollectWithError_parallel() {
 	numbers := itertools.ToIterator([]int{1, 2, -1, 4})
-	even, err := numbers.FilterAndCollectWithErrorParallel(func(n int) (bool, error) {
+	even, err := numbers.FilterAndCollectWithError(func(n int) (bool, error) {
 		if n < 0 {
 			return false, fmt.Errorf("negative number: %d", n)
 		}
 		return n%2 == 0, nil
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for _, n := range even {
 		fmt.Println(n)
 	}
@@ -363,12 +363,12 @@ func ExampleIterator_ForEach() {
 	// stopped at Vera
 }
 
-func ExampleIterator_ForEachParallel() {
+func ExampleIterator_ForEach_parallel() {
 	names := itertools.ToIterator([]string{"Alice", "Bob", "Vera"})
-	err := names.ForEachParallel(func(name string) error {
+	err := names.ForEach(func(name string) error {
 		fmt.Println(name)
 		return nil
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	fmt.Println(err)
 	// Unordered output:
 	// Alice
@@ -441,11 +441,11 @@ func ExampleIterator_MapAndCollect() {
 	// [item-1 item-2 item-3]
 }
 
-func ExampleIterator_MapAndCollectParallel() {
+func ExampleIterator_MapAndCollect_parallel() {
 	numbers := itertools.ToIterator([]int{1, 2, 3})
-	labels := numbers.MapAndCollectParallel(func(n int) string {
+	labels := numbers.MapAndCollect(func(n int) string {
 		return fmt.Sprintf("item-%d", n)
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for _, label := range labels {
 		fmt.Println(label)
 	}
@@ -471,15 +471,15 @@ func ExampleIterator_MapAndCollectWithError() {
 	// invalid number: oops
 }
 
-func ExampleIterator_MapAndCollectWithErrorParallel() {
+func ExampleIterator_MapAndCollectWithError_parallel() {
 	text := itertools.ToIterator([]string{"10", "oops", "20"})
-	numbers, err := text.MapAndCollectWithErrorParallel(func(s string) (int, error) {
+	numbers, err := text.MapAndCollectWithError(func(s string) (int, error) {
 		n, err := strconv.Atoi(s)
 		if err != nil {
 			return 0, fmt.Errorf("invalid number: %s", s)
 		}
 		return n, nil
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for _, n := range numbers {
 		fmt.Println(n)
 	}

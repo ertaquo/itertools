@@ -597,9 +597,42 @@ func (i OrderedIterator[V]) Filter(filterFunc func(value V) bool) Iterator[V] {
 	}
 }
 
-// FilterAndCollect returns a slice of values for which filterFunc returns true,
-// in iteration order. The result is nil if no values match.
-func (i OrderedIterator[V]) FilterAndCollect(filterFunc func(value V) bool) []V {
+// FilterAndCollect returns a slice of values for which filterFunc returns true.
+// By default, results are in iteration order. The result is nil if no values match.
+// With [WithParallel] or [WithParallelLimit], callbacks run concurrently and
+// result order is unspecified.
+func (i OrderedIterator[V]) FilterAndCollect(filterFunc func(value V) bool, options ...Option) []V {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+		var result []V
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+
+		for v := range i {
+			wg.Go(func() error {
+				if !filterFunc(v) {
+					return nil
+				}
+
+				resultMutex.Lock()
+				defer resultMutex.Unlock()
+
+				result = append(result, v)
+				return nil
+			})
+		}
+
+		_ = wg.Wait() //nolint:errcheck
+		return result
+	}
+
+	// Non-parallel case
+
 	var result []V
 	for v := range i {
 		if !filterFunc(v) {
@@ -610,9 +643,46 @@ func (i OrderedIterator[V]) FilterAndCollect(filterFunc func(value V) bool) []V 
 	return result
 }
 
-// FilterAndCollectWithError is like FilterAndCollect, but stops and returns the
-// values collected so far if filterFunc returns an error.
-func (i OrderedIterator[V]) FilterAndCollectWithError(filterFunc func(value V) (bool, error)) ([]V, error) {
+// FilterAndCollectWithError is like FilterAndCollect, but filterFunc may return
+// an error. By default, it stops and returns the results collected before the
+// first error. With [WithParallel] or [WithParallelLimit], it waits for all callbacks
+// and returns the collected matches and the first error, if any.
+func (i OrderedIterator[V]) FilterAndCollectWithError(filterFunc func(value V) (bool, error), options ...Option) ([]V, error) {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+		var result []V
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+
+		for v := range i {
+			wg.Go(func() error {
+				ok, err := filterFunc(v)
+				if err != nil {
+					return err
+				}
+				if !ok {
+					return nil
+				}
+
+				resultMutex.Lock()
+				defer resultMutex.Unlock()
+
+				result = append(result, v)
+				return nil
+			})
+		}
+
+		err := wg.Wait()
+		return result, err
+	}
+
+	// Non-parallel case
+
 	var result []V
 	for v := range i {
 		ok, err := filterFunc(v)
@@ -625,70 +695,6 @@ func (i OrderedIterator[V]) FilterAndCollectWithError(filterFunc func(value V) (
 		result = append(result, v)
 	}
 	return result, nil
-}
-
-// FilterAndCollectParallel filters values concurrently and returns the matching
-// values. The result order is unspecified; parallelOptions control the worker
-// group.
-func (i OrderedIterator[V]) FilterAndCollectParallel(filterFunc func(value V) bool, parallelOptions ...ParallelOption) []V {
-	var wg errgroup.Group
-	var result []V
-	var resultMutex sync.Mutex
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-
-	for v := range i {
-		wg.Go(func() error {
-			if !filterFunc(v) {
-				return nil
-			}
-
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-
-			result = append(result, v)
-			return nil
-		})
-	}
-
-	_ = wg.Wait() //nolint:errcheck
-	return result
-}
-
-// FilterAndCollectWithErrorParallel filters values concurrently. It waits for all workers,
-// then returns the collected values and the first error, if any. The result
-// order is unspecified.
-func (i OrderedIterator[V]) FilterAndCollectWithErrorParallel(filterFunc func(value V) (bool, error), parallelOptions ...ParallelOption) ([]V, error) {
-	var wg errgroup.Group
-	var result []V
-	var resultMutex sync.Mutex
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-
-	for v := range i {
-		wg.Go(func() error {
-			ok, err := filterFunc(v)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return nil
-			}
-
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-
-			result = append(result, v)
-			return nil
-		})
-	}
-
-	err := wg.Wait()
-	return result, err
 }
 
 // FilterMap returns an iterator over values for which filterFunc returns true, applying
@@ -771,9 +777,31 @@ func (i OrderedIterator[V]) FirstOrNone() V {
 	return none
 }
 
-// ForEach calls callback for each value in order. It stops and returns the first
-// error from callback.
-func (i OrderedIterator[V]) ForEach(callback func(v V) error) error {
+// ForEach calls callback for each value. By default, calls run in iteration
+// order and stop at the first error. With [WithParallel] or [WithParallelLimit],
+// calls run concurrently in unspecified order; it waits for all callbacks and
+// returns the first error, if any.
+func (i OrderedIterator[V]) ForEach(callback func(v V) error, options ...Option) error {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+
+		for v := range i {
+			wg.Go(func() error {
+				return callback(v)
+			})
+		}
+
+		return wg.Wait()
+	}
+
+	// Non-parallel case
+
 	for v := range i {
 		if err := callback(v); err != nil {
 			return err
@@ -781,25 +809,6 @@ func (i OrderedIterator[V]) ForEach(callback func(v V) error) error {
 	}
 
 	return nil
-}
-
-// ForEachParallel calls callback for values concurrently and returns the first
-// error from the worker group. parallelOptions control concurrency; callback
-// calls may run out of order.
-func (i OrderedIterator[V]) ForEachParallel(callback func(v V) error, parallelOptions ...ParallelOption) error {
-	var wg errgroup.Group
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-
-	for v := range i {
-		wg.Go(func() error {
-			return callback(v)
-		})
-	}
-
-	return wg.Wait()
 }
 
 // Get returns a pointer to the value at zero-based position n, or nil if n is
@@ -916,9 +925,38 @@ func (i OrderedIterator[V]) Map[V2 any](mapFunc func(value V) V2) Iterator[V2] {
 	}
 }
 
-// MapAndCollect applies mapFunc to every value and returns the results in
-// iteration order.
-func (i OrderedIterator[V]) MapAndCollect[V2 any](mapFunc func(value V) V2) []V2 {
+// MapAndCollect applies mapFunc to every value and returns the results. By
+// default, results are in iteration order. With [WithParallel] or
+// [WithParallelLimit], callbacks run concurrently and result order is unspecified.
+func (i OrderedIterator[V]) MapAndCollect[V2 any](mapFunc func(value V) V2, options ...Option) []V2 {
+	opts := toOptionsSet(options...)
+
+	if opts.parallel {
+		var wg errgroup.Group
+		var result []V2
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+
+		for v := range i {
+			wg.Go(func() error {
+				v2 := mapFunc(v)
+
+				resultMutex.Lock()
+				defer resultMutex.Unlock()
+				result = append(result, v2)
+				return nil
+			})
+		}
+
+		_ = wg.Wait() //nolint:errcheck
+		return result
+	}
+
+	// Non-parallel case
+
 	var result []V2
 	for v := range i {
 		result = append(result, mapFunc(v))
@@ -926,35 +964,42 @@ func (i OrderedIterator[V]) MapAndCollect[V2 any](mapFunc func(value V) V2) []V2
 	return result
 }
 
-// MapAndCollectParallel applies mapFunc concurrently and returns the results in
-// unspecified order. parallelOptions control the worker group.
-func (i OrderedIterator[V]) MapAndCollectParallel[V2 any](mapFunc func(value V) V2, parallelOptions ...ParallelOption) []V2 {
-	var wg errgroup.Group
-	var result []V2
-	var resultMutex sync.Mutex
+// MapAndCollectWithError applies mapFunc to every value. By default, it stops and
+// returns the results collected before the first error. With [WithParallel] or
+// [WithParallelLimit], it waits for all callbacks and returns the collected results
+// and the first error, if any.
+func (i OrderedIterator[V]) MapAndCollectWithError[V2 any](mapFunc func(value V) (V2, error), options ...Option) ([]V2, error) {
+	opts := toOptionsSet(options...)
 
-	for _, option := range parallelOptions {
-		option(&wg)
+	if opts.parallel {
+		var wg errgroup.Group
+		var result []V2
+		var resultMutex sync.Mutex
+
+		if opts.parallelLimit > 0 {
+			wg.SetLimit(opts.parallelLimit)
+		}
+
+		for v := range i {
+			wg.Go(func() error {
+				v2, err := mapFunc(v)
+				if err != nil {
+					return err
+				}
+
+				resultMutex.Lock()
+				defer resultMutex.Unlock()
+				result = append(result, v2)
+				return nil
+			})
+		}
+
+		err := wg.Wait()
+		return result, err
 	}
 
-	for v := range i {
-		wg.Go(func() error {
-			v2 := mapFunc(v)
+	// Non-parallel case
 
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-			result = append(result, v2)
-			return nil
-		})
-	}
-
-	_ = wg.Wait() //nolint:errcheck
-	return result
-}
-
-// MapAndCollectWithError applies mapFunc in order and returns the results
-// collected before the first error.
-func (i OrderedIterator[V]) MapAndCollectWithError[V2 any](mapFunc func(value V) (V2, error)) ([]V2, error) {
 	var result []V2
 	for v := range i {
 		v2, err := mapFunc(v)
@@ -964,35 +1009,6 @@ func (i OrderedIterator[V]) MapAndCollectWithError[V2 any](mapFunc func(value V)
 		result = append(result, v2)
 	}
 	return result, nil
-}
-
-// MapAndCollectWithErrorParallel applies mapFunc concurrently and returns
-// collected results and the first error, if any. The result order is unspecified.
-func (i OrderedIterator[V]) MapAndCollectWithErrorParallel[V2 any](mapFunc func(value V) (V2, error), parallelOptions ...ParallelOption) ([]V2, error) {
-	var wg errgroup.Group
-	var result []V2
-	var resultMutex sync.Mutex
-
-	for _, option := range parallelOptions {
-		option(&wg)
-	}
-
-	for v := range i {
-		wg.Go(func() error {
-			v2, err := mapFunc(v)
-			if err != nil {
-				return err
-			}
-
-			resultMutex.Lock()
-			defer resultMutex.Unlock()
-			result = append(result, v2)
-			return nil
-		})
-	}
-
-	err := wg.Wait()
-	return result, err
 }
 
 // Pull returns next and stop functions for pulling values from the iterator. Call

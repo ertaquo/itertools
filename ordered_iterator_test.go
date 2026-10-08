@@ -151,7 +151,7 @@ func TestOrderedIteratorFilter(t *testing.T) {
 	even := func(v int) bool { return v%2 == 0 }
 	assert.Equal(t, []int{2, 4}, i.Filter(even).Collect(), "Filter")
 	assert.Equal(t, []int{2, 4}, i.FilterAndCollect(even), "FilterAndCollect")
-	assert.Equal(t, []int{2, 4}, slices.Sorted(slices.Values(i.FilterAndCollectParallel(even, itertools.WithLimit(2)))), "FilterAndCollectParallel")
+	assert.Equal(t, []int{2, 4}, slices.Sorted(slices.Values(i.FilterAndCollect(even, itertools.WithParallelLimit(2)))), "FilterAndCollect (parallel)")
 	stopped := 0
 	for range i.Filter(even) {
 		stopped++
@@ -246,19 +246,19 @@ func TestOrderedIteratorFilterWithError(t *testing.T) {
 	if !errors.Is(err, bad) {
 		t.Errorf("FilterAndCollectWithError error = %v", err)
 	}
-	got, err = i.FilterAndCollectWithErrorParallel(f, itertools.WithLimit(1))
+	got, err = i.FilterAndCollectWithError(f, itertools.WithParallelLimit(1))
 	if !errors.Is(err, bad) {
-		t.Errorf("FilterAndCollectWithErrorParallel error = %v", err)
+		t.Errorf("FilterAndCollectWithError (parallel) error = %v", err)
 	}
 	if !slices.Contains(got, 2) || slices.Contains(got, 1) {
-		t.Errorf("FilterAndCollectWithErrorParallel = %v", got)
+		t.Errorf("FilterAndCollectWithError (parallel) = %v", got)
 	}
-	got, err = i.FilterAndCollectWithErrorParallel(func(v int) (bool, error) { return v%2 == 0, nil })
+	got, err = i.FilterAndCollectWithError(func(v int) (bool, error) { return v%2 == 0, nil }, itertools.WithParallel())
 	if err != nil {
 		t.Fatal(err)
 	}
 	slices.Sort(got)
-	assert.Equal(t, []int{2, 4}, got, "FilterAndCollectWithErrorParallel")
+	assert.Equal(t, []int{2, 4}, got, "FilterAndCollectWithError (parallel)")
 }
 
 func TestOrderedIteratorFilterMap(t *testing.T) {
@@ -506,19 +506,19 @@ func TestOrderedIteratorForEach(t *testing.T) {
 	}
 	var mu sync.Mutex
 	got = nil
-	err = i.ForEachParallel(func(v int) error { mu.Lock(); got = append(got, v); mu.Unlock(); return nil }, itertools.WithLimit(2))
+	err = i.ForEach(func(v int) error { mu.Lock(); got = append(got, v); mu.Unlock(); return nil }, itertools.WithParallelLimit(2))
 	if err != nil {
 		t.Fatal(err)
 	}
 	slices.Sort(got)
-	assert.Equal(t, []int{1, 2, 3}, got, "ForEachParallel")
-	if err := i.ForEachParallel(func(v int) error {
+	assert.Equal(t, []int{1, 2, 3}, got, "ForEach (parallel)")
+	if err := i.ForEach(func(v int) error {
 		if v == 2 {
 			return bad
 		}
 		return nil
-	}); !errors.Is(err, bad) {
-		t.Errorf("ForEachParallel error = %v", err)
+	}, itertools.WithParallel()); !errors.Is(err, bad) {
+		t.Errorf("ForEach (parallel) error = %v", err)
 	}
 }
 
@@ -538,9 +538,9 @@ func TestOrderedIteratorMap(t *testing.T) {
 	double := func(v int) int { return v * 2 }
 	assert.Equal(t, []int{2, 4, 6}, i.Map(double).Collect(), "Map")
 	assert.Equal(t, []int{2, 4, 6}, i.MapAndCollect(double), "MapAndCollect")
-	got := i.MapAndCollectParallel(double, itertools.WithLimit(2))
+	got := i.MapAndCollect(double, itertools.WithParallelLimit(2))
 	slices.Sort(got)
-	assert.Equal(t, []int{2, 4, 6}, got, "MapAndCollectParallel")
+	assert.Equal(t, []int{2, 4, 6}, got, "MapAndCollect (parallel)")
 }
 
 func TestOrderedIteratorMapWithError(t *testing.T) {
@@ -557,16 +557,16 @@ func TestOrderedIteratorMapWithError(t *testing.T) {
 	if !errors.Is(err, bad) {
 		t.Errorf("MapAndCollectWithError error = %v", err)
 	}
-	_, err = i.MapAndCollectWithErrorParallel(f, itertools.WithLimit(1))
+	_, err = i.MapAndCollectWithError(f, itertools.WithParallelLimit(1))
 	if !errors.Is(err, bad) {
-		t.Errorf("MapAndCollectWithErrorParallel error = %v", err)
+		t.Errorf("MapAndCollectWithError (parallel) error = %v", err)
 	}
-	got, err = i.MapAndCollectWithErrorParallel(func(v int) (int, error) { return v * 2, nil })
+	got, err = i.MapAndCollectWithError(func(v int) (int, error) { return v * 2, nil }, itertools.WithParallel())
 	if err != nil {
 		t.Fatal(err)
 	}
 	slices.Sort(got)
-	assert.Equal(t, []int{2, 4, 6}, got, "MapAndCollectWithErrorParallel")
+	assert.Equal(t, []int{2, 4, 6}, got, "MapAndCollectWithError (parallel)")
 }
 
 func TestOrderedIteratorExtrema(t *testing.T) {

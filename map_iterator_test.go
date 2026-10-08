@@ -156,7 +156,7 @@ func TestMapIteratorFilter(t *testing.T) {
 	want := map[string]int{"b": 2}
 	assert.Equal(t, []mapPair{{"b", 2}}, collectMapPairs(i.Filter(even)), "Filter")
 	assert.Equal(t, want, i.FilterAndCollect(even), "FilterAndCollect")
-	assert.Equal(t, want, i.FilterAndCollectParallel(even, itertools.WithLimit(2)), "FilterAndCollectParallel")
+	assert.Equal(t, want, i.FilterAndCollect(even, itertools.WithParallelLimit(2)), "FilterAndCollect (parallel)")
 	assert.Equal(t, []mapPair{{"b", 2}}, collectMapPairs(i.FilterKeys(func(k string) bool { return k == "b" })), "FilterKeys")
 	assert.Equal(t, []mapPair{{"b", 2}}, collectMapPairs(i.FilterValues(func(v int) bool { return v%2 == 0 })), "FilterValues")
 	visited := 0
@@ -190,18 +190,18 @@ func TestMapIteratorFilterWithError(t *testing.T) {
 	if !errors.Is(err, bad) {
 		t.Errorf("FilterAndCollectWithError error = %v", err)
 	}
-	got, err = i.FilterAndCollectWithErrorParallel(f, itertools.WithLimit(1))
+	got, err = i.FilterAndCollectWithError(f, itertools.WithParallelLimit(1))
 	if !errors.Is(err, bad) {
-		t.Errorf("FilterAndCollectWithErrorParallel error = %v", err)
+		t.Errorf("FilterAndCollectWithError (parallel) error = %v", err)
 	}
 	if !maps.Equal(got, map[string]int{"b": 2}) {
-		t.Errorf("FilterAndCollectWithErrorParallel partial = %v", got)
+		t.Errorf("FilterAndCollectWithError (parallel) partial = %v", got)
 	}
-	got, err = i.FilterAndCollectWithErrorParallel(func(_ string, v int) (bool, error) { return v%2 == 0, nil })
+	got, err = i.FilterAndCollectWithError(func(_ string, v int) (bool, error) { return v%2 == 0, nil }, itertools.WithParallel())
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, map[string]int{"b": 2}, got, "FilterAndCollectWithErrorParallel")
+	assert.Equal(t, map[string]int{"b": 2}, got, "FilterAndCollectWithError (parallel)")
 }
 
 func TestMapIteratorFilterMap(t *testing.T) {
@@ -373,24 +373,24 @@ func TestMapIteratorForEach(t *testing.T) {
 	}
 	var mu sync.Mutex
 	got = nil
-	err = i.ForEachParallel(func(k string, v int) error {
+	err = i.ForEach(func(k string, v int) error {
 		mu.Lock()
 		got = append(got, mapPair{k, v})
 		mu.Unlock()
 		return nil
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	if err != nil {
 		t.Fatal(err)
 	}
 	slices.SortFunc(got, func(a, b mapPair) int { return cmp.Compare(a.key, b.key) })
-	assert.Equal(t, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}, got, "ForEachParallel")
-	if err := i.ForEachParallel(func(k string, _ int) error {
+	assert.Equal(t, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}, got, "ForEach (parallel)")
+	if err := i.ForEach(func(k string, _ int) error {
 		if k == "b" {
 			return bad
 		}
 		return nil
-	}); !errors.Is(err, bad) {
-		t.Errorf("ForEachParallel error = %v", err)
+	}, itertools.WithParallel()); !errors.Is(err, bad) {
+		t.Errorf("ForEach (parallel) error = %v", err)
 	}
 }
 
@@ -435,7 +435,7 @@ func TestMapIteratorMap(t *testing.T) {
 	wantMap := map[string]int{"a!": 2, "b!": 4}
 	assert.Equal(t, wantPairs, collectMapPairs(i.Map(f)), "Map")
 	assert.Equal(t, wantMap, i.MapAndCollect(f), "MapAndCollect")
-	assert.Equal(t, wantMap, i.MapAndCollectParallel(f, itertools.WithLimit(2)), "MapAndCollectParallel")
+	assert.Equal(t, wantMap, i.MapAndCollect(f, itertools.WithParallelLimit(2)), "MapAndCollect (parallel)")
 	assert.Equal(t, []mapPair{{"a!", 1}, {"b!", 2}}, collectMapPairs(i.MapKeys(func(k string) string { return k + "!" })), "MapKeys")
 	assert.Equal(t, []mapPair{{"a", 2}, {"b", 4}}, collectMapPairs(i.MapValues(func(v int) int { return v * 2 })), "MapValues")
 }
@@ -455,16 +455,16 @@ func TestMapIteratorMapWithError(t *testing.T) {
 	if !errors.Is(err, bad) {
 		t.Errorf("MapAndCollectWithError error = %v", err)
 	}
-	got, err = i.MapAndCollectWithErrorParallel(f, itertools.WithLimit(1))
-	assert.Equal(t, want, got, "MapAndCollectWithErrorParallel partial")
+	got, err = i.MapAndCollectWithError(f, itertools.WithParallelLimit(1))
+	assert.Equal(t, want, got, "MapAndCollectWithError (parallel) partial")
 	if !errors.Is(err, bad) {
-		t.Errorf("MapAndCollectWithErrorParallel error = %v", err)
+		t.Errorf("MapAndCollectWithError (parallel) error = %v", err)
 	}
-	got, err = i.MapAndCollectWithErrorParallel(func(k string, v int) (string, int, error) { return k + "!", v * 2, nil })
+	got, err = i.MapAndCollectWithError(func(k string, v int) (string, int, error) { return k + "!", v * 2, nil }, itertools.WithParallel())
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, map[string]int{"a!": 2, "b!": 4, "c!": 6}, got, "MapAndCollectWithErrorParallel")
+	assert.Equal(t, map[string]int{"a!": 2, "b!": 4, "c!": 6}, got, "MapAndCollectWithError (parallel)")
 }
 
 func TestMapIteratorPull(t *testing.T) {

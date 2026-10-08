@@ -220,11 +220,11 @@ func ExampleMapIterator_FilterAndCollectWithError() {
 	// negative stock
 }
 
-func ExampleMapIterator_FilterAndCollectParallel() {
+func ExampleMapIterator_FilterAndCollect_parallel() {
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": 5, "plum": 7})
-	result := stock.FilterAndCollectParallel(func(fruit string, count int) bool {
+	result := stock.FilterAndCollect(func(fruit string, count int) bool {
 		return count >= 5
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for fruit, count := range result {
 		fmt.Println(fruit, count)
 	}
@@ -233,14 +233,14 @@ func ExampleMapIterator_FilterAndCollectParallel() {
 	// plum 7
 }
 
-func ExampleMapIterator_FilterAndCollectWithErrorParallel() {
+func ExampleMapIterator_FilterAndCollectWithError_parallel() {
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": -1, "plum": 7})
-	result, err := stock.FilterAndCollectWithErrorParallel(func(fruit string, count int) (bool, error) {
+	result, err := stock.FilterAndCollectWithError(func(fruit string, count int) (bool, error) {
 		if count < 0 {
 			return false, errors.New("negative stock")
 		}
 		return count > 0, nil
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for fruit, count := range result {
 		fmt.Println(fruit, count)
 	}
@@ -387,12 +387,12 @@ func ExampleMapIterator_ForEach() {
 	// <nil>
 }
 
-func ExampleMapIterator_ForEachParallel() {
+func ExampleMapIterator_ForEach_parallel() {
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": 5})
-	err := stock.ForEachParallel(func(fruit string, count int) error {
+	err := stock.ForEach(func(fruit string, count int) error {
 		fmt.Println(fruit, count)
 		return nil
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	fmt.Println(err)
 	// Unordered output:
 	// apple 3
@@ -482,11 +482,11 @@ func ExampleMapIterator_MapAndCollect() {
 	// map[APPLE:3 PEAR:5]
 }
 
-func ExampleMapIterator_MapAndCollectParallel() {
+func ExampleMapIterator_MapAndCollect_parallel() {
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": 5})
-	result := stock.MapAndCollectParallel(func(fruit string, count int) (string, string) {
+	result := stock.MapAndCollect(func(fruit string, count int) (string, string) {
 		return strings.ToUpper(fruit), strconv.Itoa(count)
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for fruit, count := range result {
 		fmt.Printf("%s: %q\n", fruit, count)
 	}
@@ -508,12 +508,12 @@ func ExampleMapIterator_MapAndCollectWithError() {
 	// strconv.Atoi: parsing "invalid": invalid syntax
 }
 
-func ExampleMapIterator_MapAndCollectWithErrorParallel() {
+func ExampleMapIterator_MapAndCollectWithError_parallel() {
 	stock := itertools.ToMapIterator(map[string]string{"apple": "3", "pear": "invalid", "plum": "5"})
-	result, err := stock.MapAndCollectWithErrorParallel(func(fruit, text string) (string, int, error) {
+	result, err := stock.MapAndCollectWithError(func(fruit, text string) (string, int, error) {
 		count, err := strconv.Atoi(text)
 		return fruit, count, err
-	}, itertools.WithLimit(2))
+	}, itertools.WithParallelLimit(2))
 	for fruit, count := range result {
 		fmt.Println(fruit, count)
 	}
