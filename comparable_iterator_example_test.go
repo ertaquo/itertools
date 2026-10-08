@@ -269,6 +269,17 @@ func ExampleComparableIterator_FilterAndCollectWithErrorParallel() {
 	// negative value: -1
 }
 
+func ExampleComparableIterator_FilterMap() {
+	text := itertools.ToComparableIterator([]string{"10", "oops", "20", "30"})
+	numbers := text.FilterMap(func(value string) (int, bool) {
+		n, err := strconv.Atoi(value)
+		return n, err == nil
+	})
+	fmt.Println(numbers.Collect())
+	// Output:
+	// [10 20 30]
+}
+
 func ExampleComparableIterator_Find() {
 	values := itertools.ToComparableIterator([]int{1, 2, 3, 4})
 	found := values.Find(func(value int) bool { return value%2 == 0 })

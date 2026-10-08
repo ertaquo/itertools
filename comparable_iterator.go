@@ -427,6 +427,24 @@ func (i ComparableIterator[V]) FilterAndCollectWithErrorParallel(filterFunc func
 	return result, err
 }
 
+// FilterMap returns an iterator over values for which filterFunc returns true, applying
+// the transformation to each matching value. It evaluates filterFunc as values are
+// requested.
+func (i ComparableIterator[V]) FilterMap[V2 any](filterFunc func(value V) (V2, bool)) Iterator[V2] {
+	return func(yield func(V2) bool) {
+		for v := range i {
+			v2, ok := filterFunc(v)
+			if !ok {
+				continue
+			}
+
+			if !yield(v2) {
+				return
+			}
+		}
+	}
+}
+
 // Find returns a pointer to the first value matching matchFunc, or nil if none
 // matches.
 func (i ComparableIterator[V]) Find(matchFunc func(v V) bool) *V {

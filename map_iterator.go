@@ -318,6 +318,24 @@ func (i MapIterator[K, V]) FilterValues(filterFunc func(value V) bool) MapIterat
 	}
 }
 
+// FilterMap returns an iterator over pairs for which filterFunc returns true, applying
+// the transformation to each matching pair. It evaluates filterFunc as pairs are
+// requested.
+func (i MapIterator[K, V]) FilterMap[K2 comparable, V2 any](filterFunc func(key K, value V) (K2, V2, bool)) MapIterator[K2, V2] {
+	return func(yield func(K2, V2) bool) {
+		for k, v := range i {
+			k2, v2, ok := filterFunc(k, v)
+			if !ok {
+				continue
+			}
+
+			if !yield(k2, v2) {
+				return
+			}
+		}
+	}
+}
+
 // Find returns pointers to the first key and value matching matchFunc, or two nil
 // pointers if none matches.
 func (i MapIterator[K, V]) Find(matchFunc func(k K, v V) bool) (*K, *V) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"maps"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -201,6 +202,89 @@ func TestMapIteratorFilterWithError(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, map[string]int{"b": 2}, got, "FilterAndCollectWithErrorParallel")
+}
+
+func TestMapIteratorFilterMap(t *testing.T) {
+	type pair struct {
+		key   int
+		value string
+	}
+	for _, tt := range []struct {
+		name  string
+		pairs []mapPair
+		want  []pair
+	}{
+		{"nil", nil, nil},
+		{"empty", []mapPair{}, nil},
+		{"single match", []mapPair{{"", 0}}, []pair{{0, "0"}}},
+		{"single rejected", []mapPair{{"skip", 1}}, nil},
+		{"all match", []mapPair{{"a", 1}, {"bb", 2}}, []pair{{1, "10"}, {2, "20"}}},
+		{"none match", []mapPair{{"skip", 1}, {"a", -1}}, nil},
+		{"mixed", []mapPair{{"skip", 9}, {"a", 1}, {"c", -1}, {"bb", 2}, {"a", 1}}, []pair{{1, "10"}, {2, "20"}, {1, "10"}}},
+		{"duplicate keys", []mapPair{{"a", 1}, {"a", 2}}, []pair{{1, "10"}, {1, "20"}}},
+		{"key collisions", []mapPair{{"a", 1}, {"b", 2}}, []pair{{1, "10"}, {1, "20"}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var called []mapPair
+			i := mapSeq(tt.pairs...).FilterMap(func(key string, value int) (int, string, bool) {
+				called = append(called, mapPair{key, value})
+				if key == "skip" || value < 0 {
+					return 99, "discarded", false
+				}
+				return len(key), strconv.Itoa(value * 10), true
+			})
+			for pass := range 2 {
+				called = nil
+				var got []pair
+				for key, value := range i {
+					got = append(got, pair{key, value})
+				}
+				if !slices.Equal(got, tt.want) {
+					t.Errorf("FilterMap(%v), pass %d = %v, want %v", tt.pairs, pass, got, tt.want)
+				}
+				if !slices.Equal(called, tt.pairs) {
+					t.Errorf("FilterMap callback pairs = %v, want %v", called, tt.pairs)
+				}
+			}
+		})
+	}
+}
+
+func TestMapIteratorFilterMapRange(t *testing.T) {
+	var visited, called []mapPair
+	i := itertools.MapIterator[string, int](func(yield func(string, int) bool) {
+		for _, p := range []mapPair{{"skip", 0}, {"a", 2}, {"b", -1}, {"bb", 4}, {"c", 6}} {
+			visited = append(visited, p)
+			if !yield(p.key, p.value) {
+				return
+			}
+		}
+	}).FilterMap(func(key string, value int) (int, string, bool) {
+		called = append(called, mapPair{key, value})
+		return len(key), strconv.Itoa(value * 10), key != "skip" && value >= 0
+	})
+	if len(visited) != 0 || len(called) != 0 {
+		t.Fatalf("FilterMap before iteration visited %v and made callback calls %v, want neither", visited, called)
+	}
+
+	count := 0
+	for key, value := range i {
+		count++
+		if key != 1 || value != "20" {
+			t.Errorf("FilterMap first pair = %d, %q, want 1, %q", key, value, "20")
+		}
+		break
+	}
+	if count != 1 {
+		t.Errorf("FilterMap after break yielded %d pairs, want 1", count)
+	}
+	want := []mapPair{{"skip", 0}, {"a", 2}}
+	if !slices.Equal(visited, want) {
+		t.Errorf("FilterMap source pairs after break = %v, want %v", visited, want)
+	}
+	if !slices.Equal(called, want) {
+		t.Errorf("FilterMap callback pairs after break = %v, want %v", called, want)
+	}
 }
 
 func TestMapIteratorFind(t *testing.T) {

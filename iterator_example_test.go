@@ -238,6 +238,17 @@ func ExampleIterator_FilterAndCollectWithErrorParallel() {
 	// negative number: -1
 }
 
+func ExampleIterator_FilterMap() {
+	text := itertools.ToIterator([]string{"10", "oops", "20", "30"})
+	numbers := text.FilterMap(func(value string) (int, bool) {
+		n, err := strconv.Atoi(value)
+		return n, err == nil
+	})
+	fmt.Println(numbers.Collect())
+	// Output:
+	// [10 20 30]
+}
+
 func ExampleIterator_Find() {
 	names := itertools.ToIterator([]string{"Alice", "Bob", "Vera"})
 	if name := names.Find(func(name string) bool { return len(name) == 3 }); name != nil {

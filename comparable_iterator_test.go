@@ -6,6 +6,7 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -248,6 +249,78 @@ func TestComparableIteratorFilterWithError(t *testing.T) {
 	}
 	slices.Sort(got)
 	assert.Equal(t, []int{2, 4}, got, "FilterAndCollectWithErrorParallel")
+}
+
+func TestComparableIteratorFilterMap(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []string
+		want   []int
+	}{
+		{"nil", nil, nil},
+		{"empty", []string{}, nil},
+		{"single match", []string{"0"}, []int{0}},
+		{"single rejected", []string{"oops"}, nil},
+		{"all match", []string{"3", "-1", "3", "0"}, []int{3, -1, 3, 0}},
+		{"none match", []string{"oops", "bad"}, nil},
+		{"mixed", []string{"bad", "3", "oops", "-1", "3", "0", "bad"}, []int{3, -1, 3, 0}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var called []string
+			i := itertools.ToComparableIterator(tt.values).FilterMap(func(value string) (int, bool) {
+				called = append(called, value)
+				n, err := strconv.Atoi(value)
+				if err != nil {
+					return -1, false
+				}
+				return n, true
+			})
+			for pass := range 2 {
+				called = nil
+				if got := i.Collect(); !slices.Equal(got, tt.want) {
+					t.Errorf("FilterMap(%q), pass %d = %v, want %v", tt.values, pass, got, tt.want)
+				}
+				if !slices.Equal(called, tt.values) {
+					t.Errorf("FilterMap callback values = %q, want %q", called, tt.values)
+				}
+			}
+		})
+	}
+}
+
+func TestComparableIteratorFilterMapRange(t *testing.T) {
+	var visited, called []string
+	i := itertools.ComparableIterator[string](func(yield func(string) bool) {
+		for _, value := range []string{"bad", "2", "oops", "4", "6"} {
+			visited = append(visited, value)
+			if !yield(value) {
+				return
+			}
+		}
+	}).FilterMap(func(value string) (int, bool) {
+		called = append(called, value)
+		n, err := strconv.Atoi(value)
+		return n, err == nil
+	})
+	if len(visited) != 0 || len(called) != 0 {
+		t.Fatalf("FilterMap before iteration visited %q and made callback calls %q, want neither", visited, called)
+	}
+
+	var got []int
+	for value := range i {
+		got = append(got, value)
+		break
+	}
+	if want := []int{2}; !slices.Equal(got, want) {
+		t.Errorf("FilterMap after break = %v, want %v", got, want)
+	}
+	want := []string{"bad", "2"}
+	if !slices.Equal(visited, want) {
+		t.Errorf("FilterMap source values after break = %q, want %q", visited, want)
+	}
+	if !slices.Equal(called, want) {
+		t.Errorf("FilterMap callback values after break = %q, want %q", called, want)
+	}
 }
 
 func TestComparableIteratorFind(t *testing.T) {

@@ -273,6 +273,20 @@ func ExampleMapIterator_FilterValues() {
 	// plum 7
 }
 
+func ExampleMapIterator_FilterMap() {
+	stock := itertools.ToMapIterator(map[string]string{"apple": "3", "pear": "oops", "plum": "5"})
+	counts := stock.FilterMap(func(fruit, text string) (string, int, bool) {
+		count, err := strconv.Atoi(text)
+		return strings.ToUpper(fruit), count, err == nil
+	})
+	for fruit, count := range counts {
+		fmt.Println(fruit, count)
+	}
+	// Unordered output:
+	// APPLE 3
+	// PLUM 5
+}
+
 func ExampleMapIterator_Find() {
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": 5})
 	fruit, count := stock.Find(func(fruit string, count int) bool { return count > 3 })

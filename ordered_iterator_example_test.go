@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ertaquo/itertools"
@@ -509,6 +510,17 @@ func ExampleOrderedIterator_FilterAndCollectWithErrorParallel() {
 	// 2
 	// 4
 	// negative value
+}
+
+func ExampleOrderedIterator_FilterMap() {
+	text := itertools.ToOrderedIterator([]string{"10", "oops", "20", "30"})
+	numbers := text.FilterMap(func(value string) (int, bool) {
+		n, err := strconv.Atoi(value)
+		return n, err == nil
+	})
+	fmt.Println(numbers.Collect())
+	// Output:
+	// [10 20 30]
 }
 
 func ExampleOrderedIterator_Find() {
