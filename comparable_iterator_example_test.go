@@ -93,6 +93,19 @@ func ExampleComparableIterator_GroupBy() {
 	// 4 [Rust Java]
 }
 
+func ExampleComparableIterator_Pairwise() {
+	values := itertools.ToComparableIterator([]string{"name", "Alice", "city", "Paris", "country"})
+	// Interpret alternating values as map keys and values.
+	pairs := values.Pairwise()
+	for key, value := range pairs {
+		fmt.Printf("%s: %q\n", key, value)
+	}
+	// Output:
+	// name: "Alice"
+	// city: "Paris"
+	// country: ""
+}
+
 func ExampleComparableIterator_Unique() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "red", "blue", "green"})
 	fmt.Println(values.Unique().Collect())

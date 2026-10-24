@@ -373,6 +373,19 @@ func ExampleOrderedIterator_GroupBy() {
 	// 4 [Rust Java]
 }
 
+func ExampleOrderedIterator_Pairwise() {
+	values := itertools.ToOrderedIterator([]string{"name", "Alice", "city", "Paris", "country"})
+	// Interpret alternating values as map keys and values.
+	pairs := values.Pairwise()
+	for key, value := range pairs {
+		fmt.Printf("%s: %q\n", key, value)
+	}
+	// Output:
+	// name: "Alice"
+	// city: "Paris"
+	// country: ""
+}
+
 func ExampleOrderedIterator_Unique() {
 	i := itertools.ToOrderedIterator([]int{1, 2, 1, 3, 2})
 	fmt.Println(i.Unique().Collect())

@@ -153,6 +153,32 @@ func (i ComparableIterator[V]) GroupBy[K comparable](keyFunc func(v V) K) MapIte
 	}
 }
 
+// Pairwise returns a MapIterator that treats consecutive values as key-value
+// pairs, in iteration order. Each value belongs to one pair. If the number of
+// values is odd, the last key is paired with the zero value of V. It reads values
+// as pairs are requested.
+func (i ComparableIterator[V]) Pairwise() MapIterator[V, V] {
+	return func(yield func(V, V) bool) {
+		var k *V
+		for v := range i {
+			if k == nil {
+				k = &v
+				continue
+			}
+
+			if !yield(*k, v) {
+				return
+			}
+			k = nil
+		}
+
+		if k != nil {
+			var none V
+			_ = yield(*k, none)
+		}
+	}
+}
+
 // Unique returns an iterator that yields only the first occurrence of each value.
 // It uses a map to track seen values and retains that state across traversals.
 func (i ComparableIterator[V]) Unique() ComparableIterator[V] {

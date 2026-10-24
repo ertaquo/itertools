@@ -742,6 +742,100 @@ func TestOrderedIteratorConversions(t *testing.T) {
 	assert.Equal(t, []int{3, 1, 2}, plain.Collect(), "ToIterator")
 }
 
+func TestOrderedIteratorPairwise(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []int
+		want   [][2]int
+	}{
+		{"nil", nil, nil},
+		{"empty", []int{}, nil},
+		{"single zero", []int{0}, [][2]int{{0, 0}}},
+		{"single nonzero", []int{5}, [][2]int{{5, 0}}},
+		{"two values", []int{1, 2}, [][2]int{{1, 2}}},
+		{"even length", []int{1, 2, 3, 4}, [][2]int{{1, 2}, {3, 4}}},
+		{"odd length", []int{1, 2, 3, 4, 5}, [][2]int{{1, 2}, {3, 4}, {5, 0}}},
+		{"duplicate keys", []int{2, 1, 2, 3}, [][2]int{{2, 1}, {2, 3}}},
+		{"zero and negative values", []int{0, -1, 0}, [][2]int{{0, -1}, {0, 0}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			i := itertools.ToOrderedIterator(tt.values).Pairwise()
+			for pass := range 2 {
+				var got [][2]int
+				for key, value := range i {
+					got = append(got, [2]int{key, value})
+				}
+				if !slices.Equal(got, tt.want) {
+					t.Errorf("Pairwise(%v), pass %d = %v, want %v", tt.values, pass, got, tt.want)
+				}
+			}
+		})
+	}
+
+	t.Run("key-value pairs", func(t *testing.T) {
+		values := itertools.ToOrderedIterator([]string{"name", "Alice", "city", "Paris", "name", "Bob", "country"})
+		var pairs itertools.MapIterator[string, string] = values.Pairwise()
+		// Alternating keys and values form a map; collection replaces duplicate keys.
+		got := pairs.Collect()
+		want := map[string]string{"name": "Bob", "city": "Paris", "country": ""}
+		if !maps.Equal(got, want) {
+			t.Errorf("Pairwise collected map = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("strings", func(t *testing.T) {
+		var got [][2]string
+		for key, value := range itertools.ToOrderedIterator([]string{"Go", "Rust", "C"}).Pairwise() {
+			got = append(got, [2]string{key, value})
+		}
+		if want := [][2]string{{"Go", "Rust"}, {"C", ""}}; !slices.Equal(got, want) {
+			t.Errorf("Pairwise strings = %q, want %q", got, want)
+		}
+	})
+}
+
+func TestOrderedIteratorPairwiseRange(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		stop        int
+		want        [][2]int
+		wantVisited int
+	}{
+		{"first pair", 1, [][2]int{{1, 2}}, 2},
+		{"second pair", 2, [][2]int{{1, 2}, {3, 4}}, 4},
+		{"last pair", 3, [][2]int{{1, 2}, {3, 4}, {5, 0}}, 5},
+		{"complete", 4, [][2]int{{1, 2}, {3, 4}, {5, 0}}, 5},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			visited := 0
+			i := itertools.OrderedIterator[int](func(yield func(int) bool) {
+				for _, value := range []int{1, 2, 3, 4, 5} {
+					visited++
+					if !yield(value) {
+						return
+					}
+				}
+			}).Pairwise()
+			if visited != 0 {
+				t.Fatalf("Pairwise visited %d values before iteration, want 0", visited)
+			}
+			var got [][2]int
+			for key, value := range i {
+				got = append(got, [2]int{key, value})
+				if len(got) == tt.stop {
+					break
+				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Pairwise after iteration = %v, want %v", got, tt.want)
+			}
+			if visited != tt.wantVisited {
+				t.Errorf("Pairwise visited %d source values, want %d", visited, tt.wantVisited)
+			}
+		})
+	}
+}
+
 func TestOrderedIteratorPull(t *testing.T) {
 	next, stop := itertools.ToOrderedIterator([]int{1, 2}).Pull()
 	defer stop()
