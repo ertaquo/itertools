@@ -846,7 +846,7 @@ func TestOrderedIteratorPairwise(t *testing.T) {
 
 	t.Run("key-value pairs", func(t *testing.T) {
 		values := itertools.ToOrderedIterator([]string{"name", "Alice", "city", "Paris", "name", "Bob", "country"})
-		var pairs itertools.MapIterator[string, string] = values.Pairwise()
+		var pairs = values.Pairwise()
 		// Alternating keys and values form a map; collection replaces duplicate keys.
 		got := pairs.Collect()
 		want := map[string]string{"name": "Bob", "city": "Paris", "country": ""}
