@@ -61,6 +61,19 @@ func ExampleMapIterator_Any() {
 	// false
 }
 
+func ExampleMapIterator_Cycle() {
+	colors := itertools.Seq2ToMapIterator(slices.All([]string{"red", "green", "blue"}))
+	for index, color := range colors.Cycle().Limit(5) {
+		fmt.Println(index, color)
+	}
+	// Output:
+	// 0 red
+	// 1 green
+	// 2 blue
+	// 0 red
+	// 1 green
+}
+
 func ExampleMapIterator_Collect() {
 	stock := itertools.ToMapIterator(map[string]int{"apple": 3, "pear": 5})
 	fmt.Println(stock.Collect())

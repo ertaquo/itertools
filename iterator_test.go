@@ -48,6 +48,87 @@ func TestIteratorPredicates(t *testing.T) {
 	}
 }
 
+func TestIteratorCycle(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		values []int
+		n      int
+		want   []int
+	}{
+		{"nil", nil, 5, nil},
+		{"empty", []int{}, 5, nil},
+		{"negative limit", []int{1, 2, 3}, -1, nil},
+		{"zero limit", []int{1, 2, 3}, 0, nil},
+		{"single", []int{5}, 3, []int{5, 5, 5}},
+		{"partial pass", []int{1, 2, 3}, 2, []int{1, 2}},
+		{"one pass", []int{1, 2, 3}, 3, []int{1, 2, 3}},
+		{"multiple passes", []int{1, 2, 3}, 8, []int{1, 2, 3, 1, 2, 3, 1, 2}},
+		{"duplicates", []int{0, -1, -1}, 5, []int{0, -1, -1, 0, -1}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			i := itertools.ToIterator(tt.values).Cycle()
+			for pass := range 2 {
+				if got := i.Limit(tt.n).Collect(); !slices.Equal(got, tt.want) {
+					t.Errorf("Cycle(%v).Limit(%d), pass %d = %v, want %v", tt.values, tt.n, pass, got, tt.want)
+				}
+			}
+		})
+	}
+
+	t.Run("noncomparable values", func(t *testing.T) {
+		values := [][]int{{1}, {2, 3}}
+		got := itertools.ToIterator(values).Cycle().Limit(5).Collect()
+		want := [][]int{{1}, {2, 3}, {1}, {2, 3}, {1}}
+		if !slices.EqualFunc(got, want, slices.Equal[[]int]) {
+			t.Errorf("Cycle(%v).Limit(5) = %v, want %v", values, got, want)
+		}
+	})
+}
+
+func TestIteratorCycleRange(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		stop        int
+		want        []int
+		wantVisited int
+	}{
+		{"first value", 1, []int{1}, 1},
+		{"partial pass", 2, []int{1, 2}, 2},
+		{"one pass", 3, []int{1, 2, 3}, 3},
+		{"first replay", 4, []int{1, 2, 3, 1}, 3},
+		{"multiple replays", 8, []int{1, 2, 3, 1, 2, 3, 1, 2}, 3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			visited, traversals := 0, 0
+			i := itertools.Iterator[int](func(yield func(int) bool) {
+				traversals++
+				for _, value := range []int{1, 2, 3} {
+					visited++
+					if !yield(value) {
+						return
+					}
+				}
+			}).Cycle()
+			if visited != 0 || traversals != 0 {
+				t.Fatalf("Cycle before iteration visited %d values in %d traversals, want 0, 0", visited, traversals)
+			}
+			var got []int
+			for value := range i {
+				got = append(got, value)
+				if len(got) == tt.stop {
+					break
+				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Cycle after break = %v, want %v", got, tt.want)
+			}
+			if visited != tt.wantVisited || traversals != 1 {
+				t.Errorf("Cycle visited %d values in %d source traversals, want %d, 1", visited, traversals, tt.wantVisited)
+			}
+		})
+	}
+}
+
 func TestIteratorCollect(t *testing.T) {
 	type numbers []int
 	i := itertools.ToIterator([]int{3, 1, 2})

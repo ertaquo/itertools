@@ -72,6 +72,90 @@ func TestMapIteratorPredicates(t *testing.T) {
 	}
 }
 
+func TestMapIteratorCycle(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		pairs []mapPair
+		n     int
+		want  []mapPair
+	}{
+		{"nil", nil, 5, nil},
+		{"empty", []mapPair{}, 5, nil},
+		{"negative limit", []mapPair{{"a", 1}, {"b", 2}}, -1, nil},
+		{"zero limit", []mapPair{{"a", 1}, {"b", 2}}, 0, nil},
+		{"single", []mapPair{{"a", 5}}, 3, []mapPair{{"a", 5}, {"a", 5}, {"a", 5}}},
+		{"partial pass", []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}, 2, []mapPair{{"a", 1}, {"b", 2}}},
+		{"one pass", []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}, 3, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}},
+		{"multiple passes", []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}, 8, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}, {"a", 1}, {"b", 2}, {"c", 3}, {"a", 1}, {"b", 2}}},
+		{"duplicate keys", []mapPair{{"a", 1}, {"a", 2}, {"", 0}}, 5, []mapPair{{"a", 1}, {"a", 2}, {"", 0}, {"a", 1}, {"a", 2}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			i := mapSeq(tt.pairs...).Cycle()
+			for pass := range 2 {
+				if got := collectMapPairs(i.Limit(tt.n)); !slices.Equal(got, tt.want) {
+					t.Errorf("Cycle(%v).Limit(%d), pass %d = %v, want %v", tt.pairs, tt.n, pass, got, tt.want)
+				}
+			}
+		})
+	}
+
+	t.Run("noncomparable values", func(t *testing.T) {
+		values := [][]int{{1}, {2, 3}}
+		i := itertools.Seq2ToMapIterator(slices.All(values))
+		keys, got := i.Cycle().Limit(5).CollectKeysAndValues()
+		if want := []int{0, 1, 0, 1, 0}; !slices.Equal(keys, want) {
+			t.Errorf("Cycle keys = %v, want %v", keys, want)
+		}
+		if want := [][]int{{1}, {2, 3}, {1}, {2, 3}, {1}}; !slices.EqualFunc(got, want, slices.Equal[[]int]) {
+			t.Errorf("Cycle values = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestMapIteratorCycleRange(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		stop        int
+		want        []mapPair
+		wantVisited int
+	}{
+		{"first pair", 1, []mapPair{{"a", 1}}, 1},
+		{"partial pass", 2, []mapPair{{"a", 1}, {"b", 2}}, 2},
+		{"one pass", 3, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}}, 3},
+		{"first replay", 4, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}, {"a", 1}}, 3},
+		{"multiple replays", 8, []mapPair{{"a", 1}, {"b", 2}, {"c", 3}, {"a", 1}, {"b", 2}, {"c", 3}, {"a", 1}, {"b", 2}}, 3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			visited, traversals := 0, 0
+			i := itertools.MapIterator[string, int](func(yield func(string, int) bool) {
+				traversals++
+				for _, pair := range []mapPair{{"a", 1}, {"b", 2}, {"c", 3}} {
+					visited++
+					if !yield(pair.key, pair.value) {
+						return
+					}
+				}
+			}).Cycle()
+			if visited != 0 || traversals != 0 {
+				t.Fatalf("Cycle before iteration visited %d pairs in %d traversals, want 0, 0", visited, traversals)
+			}
+			var got []mapPair
+			for key, value := range i {
+				got = append(got, mapPair{key, value})
+				if len(got) == tt.stop {
+					break
+				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("Cycle after break = %v, want %v", got, tt.want)
+			}
+			if visited != tt.wantVisited || traversals != 1 {
+				t.Errorf("Cycle visited %d pairs in %d source traversals, want %d, 1", visited, traversals, tt.wantVisited)
+			}
+		})
+	}
+}
+
 func TestMapIteratorCollect(t *testing.T) {
 	type namedMap map[string]int
 	type keys []string

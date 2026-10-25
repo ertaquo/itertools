@@ -157,6 +157,13 @@ func ExampleComparableIterator_Any() {
 	// false
 }
 
+func ExampleComparableIterator_Cycle() {
+	colors := itertools.ToComparableIterator([]string{"red", "green", "blue"})
+	fmt.Println(colors.Cycle().Limit(8).Collect())
+	// Output:
+	// [red green blue red green blue red green]
+}
+
 func ExampleComparableIterator_Collect() {
 	values := itertools.ToComparableIterator([]string{"red", "green", "blue"})
 	fmt.Println(values.Collect())

@@ -279,6 +279,36 @@ func (i ComparableIterator[V]) Any(matchFunc func(v V) bool) bool {
 	return i.ContainsFunc(matchFunc)
 }
 
+// Cycle returns an iterator that repeats the values of i indefinitely, in
+// iteration order. It reads and caches values as they are requested on the first
+// pass, then replays the cached values. An empty iterator yields nothing.
+// Use Limit or stop iteration to bound the output of a nonempty iterator.
+func (i ComparableIterator[V]) Cycle() ComparableIterator[V] {
+	return func(yield func(V) bool) {
+		var all []V
+
+		for v := range i {
+			if !yield(v) {
+				return
+			}
+
+			all = append(all, v)
+		}
+
+		if len(all) == 0 {
+			return
+		}
+
+		for {
+			for _, v := range all {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // Collect returns the values in iteration order as a slice. The result is nil if
 // the iterator is empty.
 func (i ComparableIterator[V]) Collect() []V {

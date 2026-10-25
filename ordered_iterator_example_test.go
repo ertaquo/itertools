@@ -437,6 +437,13 @@ func ExampleOrderedIterator_Any() {
 	// false
 }
 
+func ExampleOrderedIterator_Cycle() {
+	colors := itertools.ToOrderedIterator([]string{"red", "green", "blue"})
+	fmt.Println(colors.Cycle().Limit(8).Collect())
+	// Output:
+	// [red green blue red green blue red green]
+}
+
 func ExampleOrderedIterator_Collect() {
 	i := itertools.ToOrderedIterator([]int{3, 1, 2})
 	fmt.Println(i.Collect())

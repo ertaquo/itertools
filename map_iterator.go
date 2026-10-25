@@ -44,6 +44,41 @@ func (i MapIterator[K, V]) Any(matchFunc func(k K, v V) bool) bool {
 	return i.ContainsFunc(matchFunc)
 }
 
+// Cycle returns an iterator that repeats the pairs of i indefinitely, in
+// iteration order, including repeated keys. It reads and caches pairs as they are
+// requested on the first pass, then replays the cached pairs. An empty iterator
+// yields nothing. Use Limit or stop iteration to bound a nonempty iterator's output.
+func (i MapIterator[K, V]) Cycle() MapIterator[K, V] {
+	type KV struct {
+		k K
+		v V
+	}
+
+	return func(yield func(K, V) bool) {
+		var all []KV
+
+		for k, v := range i {
+			if !yield(k, v) {
+				return
+			}
+
+			all = append(all, KV{k, v})
+		}
+
+		if len(all) == 0 {
+			return
+		}
+
+		for {
+			for _, kv := range all {
+				if !yield(kv.k, kv.v) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // Collect collects the pairs into a new map. A later occurrence of a key replaces
 // an earlier value.
 func (i MapIterator[K, V]) Collect() map[K]V {

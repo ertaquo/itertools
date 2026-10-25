@@ -75,6 +75,13 @@ func ExampleIterator_Any() {
 	// false
 }
 
+func ExampleIterator_Cycle() {
+	colors := itertools.ToIterator([]string{"red", "green", "blue"})
+	fmt.Println(colors.Cycle().Limit(8).Collect())
+	// Output:
+	// [red green blue red green blue red green]
+}
+
 func ExampleIterator_Collect() {
 	numbers := itertools.ToIterator([]int{1, 2, 3})
 	fmt.Println(numbers.Collect())
